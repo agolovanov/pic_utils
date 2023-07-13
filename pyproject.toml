@@ -1,0 +1,14 @@
+[project]
+name = "pic_utils"
+version = "0.1.0"
+description = "Various utilities for running PIC-based codes and analyzing their results"
+authors = [
+    {name = "Anton Golovanov"},
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pic_utils*"]
