@@ -67,7 +67,11 @@ class OpenPMDWrapper:
             specie_data['species_id'] = i
             specie_data_arr.append(specie_data)
 
-        return _pd.concat(specie_data_arr)
+        if len(specie_data_arr) > 0:
+            return _pd.concat(specie_data_arr)
+        else:
+            dataframe_columns = parameters + ['species_id']
+            return _pd.DataFrame(columns=dataframe_columns)
 
     def iterations(self):
         return self.simulation.iterations
@@ -76,7 +80,11 @@ class OpenPMDWrapper:
         return self.simulation.t * self.ureg[units]
 
     def species(self):
-        return self.simulation.avail_species
+        species = self.simulation.avail_species
+        return species if species is not None else []
+
+    def density_species(self, prefix='rho_'):
+        return [field[len(prefix):] for field in self.simulation.avail_fields if field.startswith(prefix)]
 
     def get_laser_frequency(self, iteration, polarization='x', method='max'):
         """
