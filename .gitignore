@@ -1,3 +1,5 @@
 pic_utils.egg-info
 notebooks
 build
+.vscode
+pic_utils/__pycache__
