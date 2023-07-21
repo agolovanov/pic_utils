@@ -1,5 +1,3 @@
-import pint as _pint
-
 default_units = {
     'length': 'm',
     'time': 's',
@@ -13,21 +11,23 @@ default_units = {
 
 
 class PlasmaUnits:
-    def __init__(self, density, unit_registry: _pint.UnitRegistry, units: dict = None) -> None:
+    def __init__(self, density, units: dict = None) -> None:
         """Creates a system of plasma units.
 
         Parameters
         ----------
         density : pint.Quantity
             Base density for plasma units (can possibly be an array).
-        unit_registry : pint.UnitRegistry
-            Unit registry from `pint` which provides units.
         default_units : dict
             Dictionary which changes the default units to be used in the system.
             By default, uses pic_utils.plasma.default_units (which are SI units); possible keys can be looked up there.
         """
         import numpy as np
-        ureg = unit_registry  # alias
+        import pint
+        
+        if not isinstance(density, pint.Quantity):
+            raise ValueError("Density should be of pint.Quantity type and contain dimensions")
+        ureg = density._REGISTRY
 
         self.default_units = default_units.copy()
         if units is not None:
