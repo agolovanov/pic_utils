@@ -44,6 +44,11 @@ class PlasmaUnits:
         self.wavenumber = (self.frequency / self.c).to(1 / ureg(du['length']))
         self.wavelength = (2 * np.pi / self.wavenumber).to(du['length'])
 
+        self.charge_density = self.density * self.e
+
+        self.E = (self.m_e * self.c ** 2 * self.wavenumber / self.e_cgs).to(du['E'], 'Gau')
+        self.B = self.E.to(du['B'], 'Gau')
+
     def __str__(self) -> str:
         return f'PlasmaUnits({self.density:g~})'
 
