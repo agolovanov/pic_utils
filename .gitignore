@@ -3,3 +3,5 @@ notebooks
 build
 .vscode
 pic_utils/__pycache__
+.hypothesis
+.pytest_cache
