@@ -61,6 +61,9 @@ def add_plasma_profile(simulation: fbpic.main.Simulation, profile, composition: 
             initial_level = composition.ionization_levels[el]
             mass = el.relative_atomic_mass * m_u
             density = composition.get_number_density(el).m_as('1/m^3')
+            if density <= 0:
+                continue
+
             atoms = simulation.add_new_species(q=e * initial_level, m=mass, n=density, **sim_kwargs)
             species[el.name] = atoms
 
