@@ -3,7 +3,8 @@ from . import materials
 
 
 def add_plasma_profile(simulation: fbpic.main.Simulation, profile, composition: materials.Composition,
-                       particles_per_cell, add_ions=True, ionizable_ions=True, different_ionized_species=True):
+                       particles_per_cell, add_ions=True, ionizable_ions=True, different_ionized_species=True,
+                       **kwargs):
     """Creates a plasma profile for an FBPIC simulation with electrons and ionizable ions.
 
     Parameters
@@ -24,6 +25,8 @@ def add_plasma_profile(simulation: fbpic.main.Simulation, profile, composition: 
         Whether to assign different ionization levels different electron species, by default True.
         When it is True, electrons will be named according to their source and ionization level,
         e.g. 'electrons_initial', 'electrons_nitrogen_5'. When it is False, all electrons will be named 'electrons'.
+    kwargs
+        Will be passed to simulation.add_particle_species
 
     Returns
     -------
@@ -38,6 +41,7 @@ def add_plasma_profile(simulation: fbpic.main.Simulation, profile, composition: 
 
     ppc_nz, ppc_nr, ppc_nt = particles_per_cell
     sim_kwargs = {'dens_func': profile, 'p_nz': ppc_nz, 'p_nr': ppc_nr, 'p_nt': ppc_nt}
+    sim_kwargs.update(kwargs)
 
     ureg = composition.number_density._REGISTRY
 
