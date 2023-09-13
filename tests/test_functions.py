@@ -19,7 +19,7 @@ def test_fwhm_gaussian(x0, sigma, xlow, xhigh, number_of_points):
 
     fwhm_expected = sigma * 2 * np.sqrt(np.log(2))
 
-    assert np.isclose(fwhm(f, x), fwhm_expected, rtol=3e-2)
+    assert np.isclose(fwhm(f, x), fwhm_expected, rtol=1e-4)
 
 
 @given(
@@ -40,4 +40,5 @@ def test_width_gaussian(x0, sigma, xlow, xhigh, level, number_of_points):
 
     width_expected = sigma * 2 * np.sqrt(-np.log(level))
 
-    assert np.isclose(full_width_at_level(f, x, level=level), width_expected, rtol=3e-2)
+    assert np.isclose(full_width_at_level(f, x, level=level, interpolate=False), width_expected, rtol=3e-2)
+    assert np.isclose(full_width_at_level(f, x, level=level, interpolate=True), width_expected, rtol=1e-4)
