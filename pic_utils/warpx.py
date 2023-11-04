@@ -48,7 +48,7 @@ class FieldProbe2D:
 
         v_diag = r[-1] - r[0]
         self.r_center = r[0] + 0.5 * v_diag
-        shape_v1 = int(v_diag @ self.v1 / self.d1 ** 2) + 1
+        shape_v1 = round((v_diag @ self.v1 / self.d1 ** 2).m_as('')) + 1
         r = r.reshape(shape_v1, -1, 3)
 
         self.r = r
