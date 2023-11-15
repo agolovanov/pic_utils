@@ -11,23 +11,24 @@ default_units = {
 
 
 class PlasmaUnits:
-    def __init__(self, density, units: dict = None) -> None:
+    def __init__(self, base_unit, units: dict = None) -> None:
         """Creates a system of plasma units.
 
         Parameters
         ----------
-        density : pint.Quantity
-            Base density for plasma units (can possibly be an array).
+        base_unit : pint.Quantity
+            Base unit for plasma units; can be density of wavelength.
+            Arrays are allowed.
         default_units : dict
             Dictionary which changes the default units to be used in the system.
             By default, uses pic_utils.plasma.default_units (which are SI units); possible keys can be looked up there.
         """
         import numpy as np
         import pint
-        
-        if not isinstance(density, pint.Quantity):
+
+        if not isinstance(base_unit, pint.Quantity):
             raise ValueError("Density should be of pint.Quantity type and contain dimensions")
-        ureg = density._REGISTRY
+        ureg = base_unit._REGISTRY
 
         self.default_units = default_units.copy()
         if units is not None:
@@ -39,10 +40,16 @@ class PlasmaUnits:
         self.m_e = (1 * ureg.electron_mass).to(du['mass'])
         self.c = (1 * ureg.speed_of_light).to(ureg(du['length']) / ureg(du['time']))
 
-        self.density = density.to(du['density'])
-        self.frequency = np.sqrt(4 * np.pi * self.e_cgs ** 2 * self.density / self.m_e).to(1 / ureg(du['time']))
-        self.wavenumber = (self.frequency / self.c).to(1 / ureg(du['length']))
-        self.wavelength = (2 * np.pi / self.wavenumber).to(du['length'])
+        if base_unit.check({'[length]': -3}):  # density
+            self.density = base_unit.to(du['density'])
+            self.frequency = np.sqrt(4 * np.pi * self.e_cgs ** 2 * self.density / self.m_e).to(1 / ureg(du['time']))
+            self.wavenumber = (self.frequency / self.c).to(1 / ureg(du['length']))
+            self.wavelength = (2 * np.pi / self.wavenumber).to(du['length'])
+        elif base_unit.check({'[length]': 1}):  # wavelength
+            self.wavelength = base_unit.to(du['length'])
+            self.wavenumber = (2 * np.pi / self.wavelength).to(1 / ureg(du['length']))
+            self.frequency = (self.c * self.wavenumber).to(1 / ureg(du['time']))
+            self.density = (self.m_e * self.frequency ** 2 / (4 * np.pi * self.e_cgs ** 2)).to(du['density'])
 
         self.charge_density = self.density * self.e
 
