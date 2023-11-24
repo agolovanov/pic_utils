@@ -1,4 +1,5 @@
 import numpy as np
+from .functions import mean, mean_spread, calculate_spread  # noqa: F401
 
 
 def gamma(ux, uy, uz):
@@ -28,27 +29,6 @@ def limit_particle_number(data, max_particle_number):
         data = data.iloc[::every].copy()
         data['w'] *= every
     return data
-
-
-def mean(distribution, weights, *, total_weight=None):
-    if total_weight is None:
-        total_weight = weights.sum()
-    return (distribution * weights).sum() / total_weight
-
-
-def calculate_spread(distribution, weights, *, mean_value=None, total_weight=None):
-    if total_weight is None:
-        total_weight = weights.sum()
-    if mean_value is None:
-        mean_value = mean(distribution, weights, total_weight=total_weight)
-
-    return np.sqrt(mean((distribution - mean_value) ** 2, weights, total_weight=total_weight))
-
-
-def mean_spread(distribution, weights, *, total_weight=None):
-    mean_value = mean(distribution, weights, total_weight=total_weight)
-    spread = calculate_spread(distribution, weights, mean_value=mean_value, total_weight=total_weight)
-    return mean_value, spread
 
 
 def transverse_distributions(data, axis, ureg, *, total_weight=None):

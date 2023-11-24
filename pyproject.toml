@@ -1,6 +1,6 @@
 [project]
 name = "pic_utils"
-version = "0.7.0"
+version = "0.7.1"
 description = "Various utilities for running PIC-based codes and analyzing their results"
 authors = [
     {name = "Anton Golovanov"},

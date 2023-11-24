@@ -72,3 +72,24 @@ def fwhm(f, x):
         FHWM of f(x)
     """
     return full_width_at_level(f, x, level=0.5)
+
+
+def mean(distribution, weights, *, total_weight=None):
+    if total_weight is None:
+        total_weight = weights.sum()
+    return (distribution * weights).sum() / total_weight
+
+
+def calculate_spread(distribution, weights, *, mean_value=None, total_weight=None):
+    if total_weight is None:
+        total_weight = weights.sum()
+    if mean_value is None:
+        mean_value = mean(distribution, weights, total_weight=total_weight)
+
+    return np.sqrt(mean((distribution - mean_value) ** 2, weights, total_weight=total_weight))
+
+
+def mean_spread(distribution, weights, *, total_weight=None):
+    mean_value = mean(distribution, weights, total_weight=total_weight)
+    spread = calculate_spread(distribution, weights, mean_value=mean_value, total_weight=total_weight)
+    return mean_value, spread
