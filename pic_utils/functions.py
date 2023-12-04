@@ -137,7 +137,7 @@ def _density_2d_compiled(values_x, values_y, weights, grid_start_x, grid_end_x, 
         nx = int(vx_rel // grid_step_x)
         ny = int(vy_rel // grid_step_y)
 
-        if nx >= -1 and nx < grid_size_x and ny >= -1 and ny <= grid_size_y:
+        if nx >= -1 and nx < grid_size_x and ny >= -1 and ny < grid_size_y:
             ax = vx_rel / grid_step_x - nx
             ay = vy_rel / grid_step_y - ny
             bx = 1.0 - ax
