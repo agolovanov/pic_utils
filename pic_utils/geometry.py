@@ -1,0 +1,52 @@
+import numpy as np
+
+
+class Plane:
+    def __init__(self, origin, v1, v2):
+        """Creates a plane representation
+
+        Creates a plane given by r = origin + v1 * x + v2 * y
+
+        v1 and v2 are assumed to be orthogonal, although not necessarily normalized
+
+        Parameters
+        ----------
+        origin : array of size 3
+        v1 : array of size 3
+        v2 : array of size 3
+
+        Raises
+        ------
+        ValueError
+            if v1 and v2 are not orthogonal
+        """
+        self.origin = np.array(origin, dtype=float)
+        self.v1 = np.array(v1, dtype=float)
+        self.v2 = np.array(v2, dtype=float)
+
+        # normalizing the vectors
+        self.v1 /= np.sqrt(np.sum(self.v1 ** 2))
+        self.v2 /= np.sqrt(np.sum(self.v2 ** 2))
+
+        if np.abs(np.dot(self.v1, self.v2) > 1e-5):
+            raise ValueError(f'Vectors {v1} and {v2} and not orthogonal')
+        self.norm = np.cross(self.v1, self.v2)
+
+
+def coordinate_plane(axis: str, coordinate=0.0):
+    """Creates one of the coordinate planes perpendicular to the coordinate axes.
+
+    Parameters
+    ----------
+    axis : 'x', 'y' or 'z'.
+        The axis perpendicular to which to take a plane.
+        The corresponding planes will be yz, zx, and xy
+    coordinate : float, optional
+        the coordinate of the plane along the axis, by default 0.0
+    """
+    if axis == 'x':
+        return Plane((coordinate, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+    elif axis == 'y':
+        return Plane((0.0, coordinate, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0))
+    elif axis == 'z':
+        return Plane((0.0, 0.0, coordinate), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))

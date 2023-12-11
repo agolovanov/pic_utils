@@ -1,6 +1,8 @@
 import numpy as np
 from .functions import mean, mean_spread, calculate_spread  # noqa: F401
 
+import pic_utils.geometry
+
 
 def gamma(ux, uy, uz):
     """Calculates the Lorentz factor corresponding to the momentum
@@ -112,3 +114,36 @@ def spectrum(distribution, weights, *, total_weight=None, min_value=None, max_va
         sp = sp / unit
 
     return sp * total_weight, values
+
+
+def project_to_plane(data, plane: pic_utils.geometry.Plane, plane_coordinates=True):
+    """Propagates electrons to a plane
+
+    Parameters
+    ----------
+    data : dict or similar
+        electron parameters
+    plane : pic_utils.geometry.Plane
+        an object representing a plane
+    plane_coordinates : bool, optional
+        whether to return the coordinates within the plane or the original x, y, z coordinates, by default True
+
+    Returns
+    -------
+    tuple
+        two arrays corresponding to the plane coordinates if plane_coordinates is True
+        three arrays corresponding to x, y, z, otherwise
+    """
+    n_origin = np.dot(plane.origin, plane.norm)
+    n_r = (plane.norm[0] * data['x'] + plane.norm[1] * data['y'] + plane.norm[2] * data['z'])
+    n_v = (plane.norm[0] * data['ux'] + plane.norm[1] * data['uy'] + plane.norm[2] * data['uz'])
+    tau = (n_origin - n_r) / n_v
+    x = data['x'] + data['ux'] * tau
+    y = data['y'] + data['uy'] * tau
+    z = data['z'] + data['uz'] * tau
+    if plane_coordinates:
+        x_plane = x * plane.v1[0] + y * plane.v1[1] + z * plane.v1[2] - np.dot(plane.origin, plane.v1)
+        y_plane = x * plane.v2[0] + y * plane.v2[1] + z * plane.v2[2] - np.dot(plane.origin, plane.v2)
+        return x_plane, y_plane
+    else:
+        return x, y, z
