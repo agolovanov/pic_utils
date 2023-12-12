@@ -21,6 +21,7 @@ class Element:
 elements = {
     'H': Element('hydrogen', 'H', 1, 1.00784),
     'He': Element('helium', 'He', 2, 4.002602),
+    'C': Element('carbon', 'C', 6, 12.011),
     'N': Element('nitrogen', 'N', 7, 14.0067),
     'O': Element('oxygen', 'O', 8, 15.999),
 }
@@ -61,6 +62,7 @@ molecules = {
     'helium': Molecule({elements['He']: 1}),
     'nitrogen': Molecule({elements['N']: 2}),
     'oxygen': Molecule({elements['O']: 2}),
+    'methane': Molecule({elements['H']: 4, elements['C']: 1})
 }
 
 
