@@ -102,7 +102,13 @@ def density_1d(values, weights, grid):
         values = values.m_as(grid.units)
         grid = grid.magnitude
 
-    return _density_1d_compiled(np.array(values), np.array(weights), np.min(grid), np.max(grid), len(grid))
+    values = np.array(values)
+    weights = np.array(weights)
+
+    if values.size != weights.size:
+        raise ValueError(f"The sizes of values ({values.size}) and weights ({weights.size}) are not the same")
+
+    return _density_1d_compiled(values, weights, np.min(grid), np.max(grid), len(grid))
 
 
 @numba.njit
@@ -125,11 +131,10 @@ def _density_1d_compiled(values, weights, grid_start, grid_end, grid_size):
 
 
 @numba.njit
-def _density_2d_compiled(values_x, values_y, weights, grid_start_x, grid_end_x, grid_size_x, grid_start_y, grid_end_y,
-                         grid_size_y):
+def _density_2d_compiled(grid_values, values_x, values_y, weights, grid_start_x, grid_end_x, grid_size_x, grid_start_y,
+                         grid_end_y, grid_size_y):
     grid_step_x = (grid_end_x - grid_start_x) / (grid_size_x - 1)
     grid_step_y = (grid_end_y - grid_start_y) / (grid_size_y - 1)
-    grid_values = np.zeros((grid_size_x, grid_size_y), dtype=values_x.dtype)
     v_size = len(values_x)
     for i in range(v_size):
         vx_rel = values_x[i] - grid_start_x
@@ -151,7 +156,6 @@ def _density_2d_compiled(values_x, values_y, weights, grid_start_x, grid_end_x, 
                 grid_values[nx, ny+1] += bx * ay * w
             if nx != grid_size_x - 1 and ny != grid_size_y - 1:
                 grid_values[nx+1, ny+1] += ax * ay * w
-    return grid_values
 
 
 def density_2d(values_x, values_y, weights, grid_x, grid_y):
@@ -164,5 +168,23 @@ def density_2d(values_x, values_y, weights, grid_x, grid_y):
         values_y = values_y.m_as(grid_y.units)
         grid_y = grid_y.magnitude
 
-    return _density_2d_compiled(np.array(values_x), np.array(values_y), np.array(weights), np.min(grid_x),
-                                np.max(grid_x), grid_x.size, np.min(grid_y), np.max(grid_y), grid_y.size)
+    values_x = np.array(values_x)
+    values_y = np.array(values_y)
+    weights = np.array(weights)
+    x_min = np.min(grid_x)
+    x_max = np.max(grid_x)
+    grid_size_x = grid_x.size
+    y_min = np.min(grid_y)
+    y_max = np.max(grid_y)
+    grid_size_y = grid_y.size
+
+    if values_x.size != values_y.size:
+        raise ValueError(f"The sizes of values_x ({values_x.size}) and values_y ({values_y.size}) are not the same")
+    if values_x.size != weights.size:
+        raise ValueError(f"The sizes of values_x ({values_x.size}) and weights ({weights.size}) are not the same")
+
+    grid_values = np.zeros((grid_size_x, grid_size_y), dtype=values_x.dtype)
+
+    _density_2d_compiled(grid_values, values_x, values_y, weights, x_min, x_max, grid_size_x, y_min, y_max, grid_size_y)
+
+    return grid_values
