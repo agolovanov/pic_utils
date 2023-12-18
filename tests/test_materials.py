@@ -1,11 +1,11 @@
+import numpy as np
+from pic_utils.materials import normalize_shares, calculate_element_shares, Composition
+
 from hypothesis import given, strategies as st
 
 
 @given(st.lists(elements=st.floats(min_value=1e-5, max_value=1e5, allow_nan=False), min_size=1, max_size=20))
 def test_nomalized_share_inplace(shares):
-    import numpy as np
-    from pic_utils.materials import normalize_shares
-
     shares_normalized_check = np.array(shares) / np.sum(shares)
     share_dict = dict(zip(range(len(shares)), shares))
 
@@ -20,9 +20,6 @@ def test_nomalized_share_inplace(shares):
 
 
 def test_calculate_element_shares():
-    from pic_utils.materials import calculate_element_shares, normalize_shares
-    import numpy as np
-
     target = normalize_shares(calculate_element_shares({'helium': 66, 'nitrogen': 33}))
 
     expected = {'He': 0.5, 'N': 0.5}
@@ -36,9 +33,6 @@ def test_calculate_element_shares():
 
 
 def test_composition():
-    from pic_utils.materials import Composition
-    import numpy as np
-
     number_density = 1e18
     target = Composition({'helium': 2, 'nitrogen': 1}, number_density=number_density)
 

@@ -1,5 +1,8 @@
 import numpy as np
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
+
+from pic_utils.functions import full_width_at_level, fwhm
 
 
 @given(
@@ -10,8 +13,6 @@ from hypothesis import given, strategies as st
     number_of_points=st.integers(min_value=100, max_value=10000),
 )
 def test_fwhm_gaussian(x0, sigma, xlow, xhigh, number_of_points):
-    from pic_utils.functions import fwhm
-
     number_of_points = (int)(number_of_points * (xhigh + xlow))
 
     x = np.linspace(x0 - xlow * sigma, x0 + xhigh * sigma, number_of_points)
@@ -31,8 +32,6 @@ def test_fwhm_gaussian(x0, sigma, xlow, xhigh, number_of_points):
     number_of_points=st.integers(min_value=500, max_value=2000),
 )
 def test_width_gaussian(x0, sigma, xlow, xhigh, level, number_of_points):
-    from pic_utils.functions import full_width_at_level
-
     number_of_points = (int)(number_of_points * (xhigh + xlow))
 
     x = np.linspace(x0 - xlow * sigma, x0 + xhigh * sigma, number_of_points)
