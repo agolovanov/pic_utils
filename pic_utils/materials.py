@@ -1,10 +1,11 @@
 from dataclasses import dataclass
+import mendeleev
 
 
 @dataclass(frozen=True)
 class Element:
     """
-    Represent a chemical element
+    Represents a chemical element
     """
     name: str
     symbol: str
@@ -18,21 +19,17 @@ class Element:
         return hash(repr(self))
 
 
-elements = {
-    'H': Element('hydrogen', 'H', 1, 1.00784),
-    'He': Element('helium', 'He', 2, 4.002602),
-    'C': Element('carbon', 'C', 6, 12.011),
-    'N': Element('nitrogen', 'N', 7, 14.0067),
-    'O': Element('oxygen', 'O', 8, 15.999),
-}
+known_elements = {}
 
 
 def search_element(name):
-    for el in elements.values():
-        if el.name == name:
-            return el
-
-    return None
+    """
+    Uses the mendeleev package to search for an element
+    """
+    el = mendeleev.element(name)
+    if el.symbol not in known_elements:
+        known_elements[el.symbol] = Element(el.name.lower(), el.symbol, el.atomic_number, el.atomic_weight)
+    return known_elements[el.symbol]
 
 
 class Molecule:
@@ -40,11 +37,10 @@ class Molecule:
 
     def __init__(self, elements: dict) -> None:
         """
-        Creates a gas based on the dictionary of elements, e.g.
-        {elements.HYDROGEN : 2, elements:OXYGEN : 1} for water
+        Creates a molecule based on the dictionary of elements, e.g. {'H' : 2, 'O' : 1} for water
         """
-        self.elements = elements
-        self.electrons = sum([element.atomic_number * count for element, count in elements.items()])
+        self.elements = {search_element(k): v for k, v in elements.items()}
+        self.electrons = sum([element.atomic_number * count for element, count in self.elements.items()])
 
     def __repr__(self):
         string_array = []
@@ -58,11 +54,11 @@ class Molecule:
 
 
 molecules = {
-    'hydrogen': Molecule({elements['H']: 2}),
-    'helium': Molecule({elements['He']: 1}),
-    'nitrogen': Molecule({elements['N']: 2}),
-    'oxygen': Molecule({elements['O']: 2}),
-    'methane': Molecule({elements['H']: 4, elements['C']: 1})
+    'hydrogen': Molecule({'H': 2}),
+    'helium': Molecule({'He': 1}),
+    'nitrogen': Molecule({'N': 2}),
+    'oxygen': Molecule({'O': 2}),
+    'methane': Molecule({'H': 4, 'C': 1}),
 }
 
 
