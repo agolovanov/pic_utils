@@ -107,7 +107,8 @@ def spectrum(distribution, weights, *, total_weight=None, min_value=None, max_va
     else:
         unit = None
 
-    sp, values = np.histogram(distribution, weights=weights, range=(min_value, max_value), bins=nbins, density=True)
+    sp, values = np.histogram(distribution, weights=weights, range=(min_value, max_value), bins=nbins,
+                              density=total_weight > 0)
     values = 0.5 * (values[1:] + values[:-1])
     if unit is not None:
         values = values * unit
