@@ -148,3 +148,152 @@ def project_to_plane(data, plane: pic_utils.geometry.Plane, plane_coordinates=Tr
         return x_plane, y_plane
     else:
         return x, y, z
+
+
+def propagate_through_magnet_relativistic(data, B0, length, *, axis='x'):
+    """Propagates particles through a magnet with a rectangular field distribution assuming that particles are
+    relativistic.
+
+    Parameters
+    ----------
+    data : dict or similar
+        the particle data containing keys like 'x', 'ux', 'gamma'
+    B0 : pint.Quantity
+        the field strength of the magnet
+    length : pint.Quantity
+        the length of the magnet
+    axis : str, optional
+        the direction to which the particles are deflected, either 'x' or 'y', by default 'x'
+        Note: it's not the direction of the magnetic field strength.
+
+    Returns
+    -------
+    dict or similar
+        the modified data
+
+    Raises
+    ------
+    ValueError
+        if the axis is invalid
+    """
+    ureg = B0._REGISTRY
+
+    e = ureg['elementary_charge'].to('esu', 'Gau')
+    m = ureg['electron_mass']
+    c = ureg['speed_of_light']
+
+    B0 = B0.to('gauss', 'Gau')
+    z0 = length.m_as('m')
+    du = (e * B0 * length / m / c ** 2).m_as('')
+
+    if axis == 'x':
+        x, ux = data['x'], data['ux']
+        y, uy = data['y'], data['uy']
+    elif axis == 'y':
+        x, ux = data['y'], data['uy']
+        y, uy = data['x'], data['ux']
+    else:
+        raise ValueError(f'Axis {axis} is invalid, can only be "x" or "y"')
+
+    x += (ux + 0.5 * du) * z0 / data['gamma']
+    ux += du
+    y += uy * z0 / data['gamma']
+    data['z'] += z0
+    uz_sqr = data['gamma'] ** 2 - data['ux'] ** 2 - data['uy'] ** 2
+    uz_sqr[uz_sqr < 0.0] = 0.0
+    data['uz'] = np.sqrt(uz_sqr)
+
+    return data
+
+
+def propagate_through_magnet(data, B0, length, transverse_max=None, *, axis='x'):
+    """Propagates particles through a magnet with a rectangular field distribution.
+
+    Parameters
+    ----------
+    data : dict or similar
+        the particle data containing keys like 'x', 'ux', 'gamma'
+    B0 : pint.Quantity
+        the field strength of the magnet
+    length : pint.Quantity
+        the length of the magnet
+    transverse_max : pint.Quantity, optional
+        the maximum transverse coordinate of the particle in the `axis` direction, by default None
+    axis : str, optional
+        the direction to which the particles are deflected, either 'x' or 'y', by default 'x'
+        Note: it's not the direction of the magnetic field strength.
+
+    Returns
+    -------
+    dict or similar
+        the modified data
+
+    Raises
+    ------
+    ValueError
+        if the axis is invalid
+    """
+    ureg = B0._REGISTRY
+
+    e = ureg['elementary_charge'].to('esu', 'Gau')
+    m = ureg['electron_mass']
+    c = ureg['speed_of_light']
+
+    B0 = B0.to('gauss', 'Gau')
+    omega0_base = e * B0 / m / c
+    k0_base = (omega0_base / c).m_as('1/m')
+    omega0_base = omega0_base.m_as('1/s')
+    length = length.m_as('m')
+    # print(omega0_base, 2 * np.pi * (1 / k0_base) * 1000)
+
+    z0 = np.mean(data['z'])
+
+    if axis == 'x':
+        x, ux = 'x', 'ux'
+        y, uy = 'y', 'uy'
+    elif axis == 'y':
+        x, ux = 'y', 'uy'
+        y, uy = 'x', 'ux'
+    else:
+        raise ValueError(f'Axis {axis} is invalid, can only be "x" or "y"')
+
+    omega0 = omega0_base / data['gamma']
+
+    x_center = data[x] + data['uz'] / k0_base
+    z_center = z0 - data[ux] / k0_base
+
+    u_perp = np.sqrt(data[ux] ** 2 + data['uz'] ** 2)
+    theta_x = np.arctan2(data[ux], data['uz'])
+
+    sin_exit = k0_base / u_perp * (z0 + length - z_center)
+    sin_exit[sin_exit > 1.0] = 1.0
+    sin_exit[sin_exit < -1.0] = -1.0
+
+    if transverse_max is not None:
+        transverse_max = transverse_max.m_as('m')
+        if omega0_base > 0:
+            cos_max = - k0_base / u_perp * (transverse_max - x_center)
+            cos_max[np.abs(cos_max) > 1.0] = 1.0
+            sin_max = np.sqrt(1 - cos_max ** 2)
+            sin_exit = np.minimum(sin_max, sin_exit)
+        else:
+            cos_max = - k0_base / u_perp * (- transverse_max - x_center)
+            cos_max[np.abs(cos_max) > 1.0] = 1.0
+            sin_max = - np.sqrt(1 - cos_max ** 2)
+            sin_exit = np.maximum(sin_max, sin_exit)
+        data['cos_max'] = cos_max
+
+    data['sin_exit'] = sin_exit
+
+    cos_exit = np.sqrt(1 - sin_exit ** 2)
+
+    t_exit = (np.arcsin(sin_exit) - theta_x) / omega0
+
+    data[x] = x_center - u_perp / k0_base * cos_exit
+    data[y] += data[uy] / data['gamma'] * c.m_as('m/s') * t_exit
+    data['z'] = z_center + u_perp / k0_base * sin_exit
+
+    data[ux] = u_perp * sin_exit
+    data['uz'] = u_perp * cos_exit
+
+    return data
