@@ -75,6 +75,66 @@ def fwhm(f, x):
     return full_width_at_level(f, x, level=0.5)
 
 
+def full_width_at_level_radial(f, r, level, interpolate=True):
+    """Calculates the width of function f(x) around the maximum at the specified level.
+
+
+    Parameters
+    ----------
+    f : np.array or similar
+        function values
+    r : np.array or similar
+        function coordinates
+    level : float
+        the level at which to calculate the width
+    interpolate : bool, default True
+        if True, the value will be calculated using a linear interpolation of the function
+
+        if False, first elements in r corresponding to values < level are returned
+    Returns
+    -------
+    float
+        the width or the bounds of the function at the certain level
+    """
+    if np.min(r) < 0:
+        raise ValueError('Negative values of the radial coordinates')
+
+    f_norm = f - level * np.max(f)
+    index_max_f = np.argmax(f_norm)
+
+    index = np.argmax(f_norm[index_max_f:] < 0)
+
+    if interpolate:
+        r1 = r[index_max_f:][index - 1]
+        r2 = r[index_max_f:][index]
+        f1 = f_norm[index_max_f:][index - 1]
+        f2 = f_norm[index_max_f:][index]
+
+        r_width = (f2 * r1 - f1 * r2) / (f2 - f1)
+    else:
+        r_width = r[index_max_f:][index]
+
+    return 2 * r_width
+
+
+def fwhm_radial(f, r):
+    """Returns full width at half maximum (FWHM) of function f(r) given by two arrays
+
+    Parameters
+    ----------
+    f : np.array or similar
+        function values
+    r : np.array or similar
+        function coorindates
+
+    Returns
+    -------
+    float
+        FHWM of f(r)
+    """
+    return full_width_at_level_radial(f, r, level=0.5)
+
+
 def mean(distribution, weights, *, total_weight=None):
     if total_weight is None:
         total_weight = weights.sum()
