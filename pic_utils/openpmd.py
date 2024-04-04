@@ -10,7 +10,7 @@ class OpenPMDWrapper:
 
         self.c = self.ureg['speed_of_light']
 
-    def read_field(self, iteration, field, component=None, geometry='xz', grid=False, mode='all',
+    def read_field(self, iteration, field, component=None, *, geometry='xz', grid=False, mode='all',
                    only_positive_r=False):
         if geometry == 'xz':
             theta = 0.0
@@ -54,6 +54,27 @@ class OpenPMDWrapper:
                 return zz, xx, f
             else:
                 return f
+
+    def read_poynting_vector(self, iteration, component, *, geometry='xz', grid=False, mode='all',
+                             only_positive_r=False):
+        from .electromagnetism import poynting_vector
+
+        if component != 'z':
+            raise NotImplementedError(f'Components other than z are not implemented yet, {component} not available')
+
+        kwargs = {'geometry': geometry, 'mode': mode, 'only_positive_r': only_positive_r}
+
+        ex = self.read_field(iteration, 'E', 'x', grid=grid, **kwargs)
+        ey = self.read_field(iteration, 'E', 'y', grid=False, **kwargs)
+
+        bx = self.read_field(iteration, 'B', 'x', grid=False, **kwargs)
+        by = self.read_field(iteration, 'B', 'y', grid=False, **kwargs)
+
+        if grid:
+            xx, yy, ex = ex
+            return xx, yy, poynting_vector(ex, ey, bx, by)
+        else:
+            return poynting_vector(ex, ey, bx, by)
 
     def read_particles(self, iteration, species, parameters=['x', 'y', 'z', 'ux', 'uy', 'uz', 'w'], select=None):
         specie_data_arr = []
