@@ -29,14 +29,16 @@ def test_plasma_units_init(density):
 
     pu_density = PlasmaUnits(density)
     pu_wavelength = PlasmaUnits(pu_density.wavelength)
+    pu_frequency = PlasmaUnits(pu_density.frequency)
 
-    np.testing.assert_allclose(pu_density.density.magnitude, pu_wavelength.density.magnitude)
-    np.testing.assert_allclose(pu_density.wavelength.magnitude, pu_wavelength.wavelength.magnitude)
-    np.testing.assert_allclose(pu_density.wavenumber.magnitude, pu_wavelength.wavenumber.magnitude)
-    np.testing.assert_allclose(pu_density.frequency.magnitude, pu_wavelength.frequency.magnitude)
-    np.testing.assert_allclose(pu_density.E.magnitude, pu_wavelength.E.magnitude)
-    np.testing.assert_allclose(pu_density.B.magnitude, pu_wavelength.B.magnitude)
-    np.testing.assert_allclose(pu_density.charge_density.magnitude, pu_wavelength.charge_density.magnitude)
+    for pu_other in [pu_wavelength, pu_frequency]:
+        np.testing.assert_allclose(pu_density.density.magnitude, pu_other.density.magnitude)
+        np.testing.assert_allclose(pu_density.wavelength.magnitude, pu_other.wavelength.magnitude)
+        np.testing.assert_allclose(pu_density.wavenumber.magnitude, pu_other.wavenumber.magnitude)
+        np.testing.assert_allclose(pu_density.frequency.magnitude, pu_other.frequency.magnitude)
+        np.testing.assert_allclose(pu_density.E.magnitude, pu_other.E.magnitude)
+        np.testing.assert_allclose(pu_density.B.magnitude, pu_other.B.magnitude)
+        np.testing.assert_allclose(pu_density.charge_density.magnitude, pu_other.charge_density.magnitude)
 
 
 def test_plasma_units_import():
