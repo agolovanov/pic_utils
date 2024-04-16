@@ -1,4 +1,5 @@
 import numpy as np
+import pint
 from .functions import mean, mean_spread, calculate_spread  # noqa: F401
 
 import pic_utils.geometry
@@ -8,6 +9,54 @@ def gamma(ux, uy, uz):
     """Calculates the Lorentz factor corresponding to the momentum
     """
     return np.sqrt(1 + ux ** 2 + uy ** 2 + uz ** 2)
+
+
+def energy_to_gamma(energy: pint.Quantity, mass: pint.Quantity = None):
+    """Converts particle energy to the Lorentz factor
+
+    Parameters
+    ----------
+    energy : pint.Quantity
+        particle energy
+    mass : pint.Quantity, optional
+        mass of the particle, by default electron mass
+
+    Returns
+    -------
+    float
+        Lorentz factor
+    """
+    ureg = energy._REGISTRY
+    c = ureg['speed_of_light']
+    if mass is None:
+        mass = ureg['electron_mass']
+    return (energy / mass / c ** 2).m_as('') + 1.0
+
+
+def gamma_to_energy(gamma, pint_unit_registry: pint.UnitRegistry, mass: pint.Quantity = None,
+                    units='MeV') -> pint.Quantity:
+    """Converts particle Lorentz factor to its kinetic energy
+
+    Parameters
+    ----------
+    gamma : float or array
+        Lorentz factor of the particle
+    pint_unit_registry : pint.UnitRegistry
+        Unit registry to be used for conversion
+    mass : pint.Quantity, optional
+        particle mass, by default electron mass
+    units : str, optional
+        output unit fo the enegy, by default 'MeV'
+
+    Returns
+    -------
+    pint.Quantity
+        energy in specified units
+    """
+    c = pint_unit_registry['speed_of_light']
+    if mass is None:
+        mass = pint_unit_registry['electron_mass']
+    return (mass * c ** 2).to(units) * (gamma - 1.0)
 
 
 def limit_particle_number(data, max_particle_number):
