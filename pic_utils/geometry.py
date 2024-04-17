@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class Plane:
     def __init__(self, origin, v1, v2):
         """Creates a plane representation
@@ -25,12 +24,15 @@ class Plane:
         self.v2 = np.array(v2, dtype=float)
 
         # normalizing the vectors
-        self.v1 /= np.sqrt(np.sum(self.v1 ** 2))
-        self.v2 /= np.sqrt(np.sum(self.v2 ** 2))
+        self.v1 /= vector_norm(self.v1)
+        self.v2 /= vector_norm(self.v2)
 
         if np.abs(np.dot(self.v1, self.v2) > 1e-5):
             raise ValueError(f'Vectors {v1} and {v2} and not orthogonal')
         self.norm = np.cross(self.v1, self.v2)
+
+    def check_normal(self, v):
+        return are_parallel(v, self.norm)
 
 
 def coordinate_plane(axis: str, coordinate=0.0):
@@ -50,3 +52,11 @@ def coordinate_plane(axis: str, coordinate=0.0):
         return Plane((0.0, coordinate, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0))
     elif axis == 'z':
         return Plane((0.0, 0.0, coordinate), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))
+
+
+def vector_norm(v):
+    return np.linalg.norm(v)
+
+
+def are_parallel(v1, v2):
+    return np.allclose(np.abs(np.dot(v1, v2)), vector_norm(v1) * vector_norm(v2))

@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pint
 from .functions import mean, mean_spread, calculate_spread  # noqa: F401
 
@@ -346,3 +347,54 @@ def propagate_through_magnet(data, B0, length, transverse_max=None, *, axis='x')
     data['uz'] = u_perp * cos_exit
 
     return data
+
+
+def propagate_through_thin_quadrupole(data, focal_length, design_energy):
+    """Calculates the result of particle interaction with a thin quadrupole
+
+    Parameters
+    ----------
+    data : dict or similar
+        the particle data containing keys like 'x', 'ux', 'gamma'
+    focal_length : pint.Quantity
+        the focal length of the quadrupole. Positive values correspond to focussing in x, negative in y.
+    design_energy : pint.Quantity
+        the particle energy for which the focal length was calculated
+    """
+    gamma_design = energy_to_gamma(design_energy)
+
+    focal_length = focal_length.m_as('m')
+
+    data['ux'] -= gamma_design / focal_length * data['x']
+    data['uy'] += gamma_design / focal_length * data['y']
+
+
+def filter_by_pinhole(data: pd.DataFrame, radius: pint.Quantity, plane: pic_utils.geometry.Plane | float = None) -> pd.DataFrame:
+    """Filters the bunch by a pinhole.
+
+    Parameters
+    ----------
+    data : pd.Dataframe
+        the particle data containing keys like 'x', 'ux', 'gamma'
+    radius : pint.Quantity
+        the radius of the pinhole
+    plane : pic_utils.geometry.Plane | float, optional
+        if given, the bucnh will first be projected to the pinhole plane (only perpendicular to z is supported), by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        filtered particle data
+    """
+    radius = radius.m_as('m')
+
+    if plane is not None:
+        if not isinstance(plane, pic_utils.geometry.Plane):
+            plane = pic_utils.geometry.coordinate_plane('z', plane)
+        if not plane.check_normal([0, 0, 1]):
+            raise ValueError(f'Only planes perpendicular to z are supported, the plane has a normal [{plane.norm}]')
+
+        data['x'], data['y'], data['z'] = project_to_plane(data, plane, plane_coordinates=False)
+
+    r = np.sqrt(data['x'] ** 2 + data['y'] ** 2)
+    return data[r < radius]
