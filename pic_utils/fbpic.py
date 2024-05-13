@@ -341,3 +341,43 @@ def setup_diagnostics(simulation: fbpic.main.Simulation, simulation_parameters: 
             print(f"Particle diagnostics for: {', '.join(particle_species_lab.keys())}")
 
     simulation.diags = diags
+
+
+def prepare_script_folder(script: str | Path, script_folder: str | Path, parameters: dict | None = None) -> str:
+    """Prepares a separate folder for an FBPIC script.
+
+    Copies the script to the folder and creates an input JSON file based on the dictionary of parameters inside this
+    folder.
+
+    Parameters
+    ----------
+    script : str | Path
+        the path to the script or script template
+    script_folder : str | Path
+        the folder to be used to store the script
+    parameters : dict | None, optional
+        The list of input parameters to be passed to the script, by default None
+
+        The parameters will be saved as a JSON file and passed to the script as the first command-line argument
+
+    Returns
+    -------
+    str
+        The final script to be run by python followed by command-line arguments passed to the script
+    """
+    from shutil import copy
+    import pic_utils.json
+
+    script = Path(script)
+    script_folder = Path(script_folder).resolve()
+
+    script_folder.mkdir(parents=True, exist_ok=True)
+    new_script_path = script_folder / script.name
+    copy(script, new_script_path)
+
+    if parameters is not None:
+        input_parameters_path = script_folder / 'input.json'
+        pic_utils.json.save(parameters, input_parameters_path)
+        return f'"{new_script_path.resolve()}" "{input_parameters_path.resolve()}"'
+    else:
+        return f'"{new_script_path.resolve()}"'
