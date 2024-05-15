@@ -1,9 +1,15 @@
+from collections.abc import Iterable
+
 import numpy as np
 import pandas as pd
 import pint
-from .functions import mean, mean_spread, calculate_spread  # noqa: F401
+from typing_extensions import Literal
 
 import pic_utils.geometry
+
+from .functions import calculate_spread, mean, mean_spread  # noqa: F401
+
+AxisStr = Literal['x', 'y', 'z']
 
 
 def gamma(ux, uy, uz):
@@ -78,7 +84,7 @@ def initialize_energy(data, *, mass: pint.Quantity = None, units='MeV'):
     data['energy'] = gamma_to_energy(data['gamma'], mass=mass, units=units).m_as(units)
 
 
-def limit_particle_number(data, max_particle_number):
+def limit_particle_number(data: pd.DataFrame, max_particle_number: int):
     """Ensures that the number of particles is less than a certain amount.
     Randomly selects and increases the weights of particles if the number is exceeded.
 
@@ -101,24 +107,34 @@ def limit_particle_number(data, max_particle_number):
     return data
 
 
-def transverse_distributions(data, axis, ureg, *, total_weight=None):
+def transverse_distributions(data: dict, axis: AxisStr | Iterable[AxisStr], *, total_weight: float | None = None,
+                             suffix: str | None = None, propagation_axis: AxisStr = 'z') -> dict:
+    ureg = pint.get_application_registry()
+
+    res = {}
+
+    if axis == 'x' or axis == 'y' or axis == 'z':
+        if axis == propagation_axis:
+            raise ValueError(f'Axis {axis} coincides with the propagation axis {propagation_axis}')
+        x = data[f'{axis}']
+        p = data[f'u{axis}']
+    elif isinstance(axis, Iterable) and len(axis) > 1:
+        for ax in axis:
+            if suffix is not None:
+                suffix = suffix + f'_{ax}'
+            res.update(transverse_distributions(data, ax, total_weight=total_weight, suffix=suffix))
+        return res
+    else:
+        raise ValueError(f'axis can only be x, y, z or a sequence of those, {axis} is wrong')
+
     weights = data['w']
     if total_weight is None:
         total_weight = weights.sum()
 
-    if axis == 'x':
-        x = data['x']
-        p = data['ux']
-    elif axis == 'y':
-        x = data['y']
-        p = data['uy']
-    else:
-        raise ValueError('axis can only be x or y')
-
-    res = {}
+    if suffix is None:
+        suffix = f'_{axis}'
 
     pzmean = mean(data['uz'], weights, total_weight=total_weight)
-    res['pzmean'] = pzmean
 
     xmean = mean(x, weights, total_weight=total_weight)
     pmean = mean(p, weights, total_weight=total_weight)
@@ -131,12 +147,12 @@ def transverse_distributions(data, axis, ureg, *, total_weight=None):
     emittance_norm = np.sqrt(x2_mean * p2_mean - xp_mean ** 2)
     emittance = emittance_norm / pzmean
 
-    res['xmean'] = (xmean * ureg.m).to('um')
-    res['xsigma'] = (np.sqrt(x2_mean) * ureg.m).to('um')
-    res['pmean'] = pmean
-    res['psigma'] = np.sqrt(p2_mean)
-    res['emittance'] = (emittance * ureg.m).to('mm mrad')
-    res['emittance_norm'] = (emittance_norm * ureg.m).to('mm mrad')
+    res[f'mean{suffix}'] = (xmean * ureg.m).to('um')
+    res[f'sigma{suffix}'] = (np.sqrt(x2_mean) * ureg.m).to('um')
+    res[f'pmean{suffix}'] = pmean
+    res[f'psigma{suffix}'] = np.sqrt(p2_mean)
+    res[f'emittance{suffix}'] = (emittance * ureg.m).to('mm mrad')
+    res[f'emittance_norm{suffix}'] = (emittance_norm * ureg.m).to('mm mrad')
 
     x_prime = p / data['uz']
 
@@ -148,10 +164,11 @@ def transverse_distributions(data, axis, ureg, *, total_weight=None):
     emittance_tr = np.sqrt(x2_mean * x_prime2_mean - x_x_prime_mean ** 2)
     emittance_tr_norm = pzmean * emittance_tr
 
-    res['x_prime_mean'] = (x_prime_mean * ureg['']).to('mrad')
-    res['x_prime_sigma'] = (np.sqrt(x_prime2_mean) * ureg['']).to('mrad')
-    res['emittance_tr'] = (emittance_tr * ureg.m).to('mm mrad')
-    res['emittance_tr_norm'] = (emittance_tr_norm * ureg.m).to('mm mrad')
+    res[f'prime_mean{suffix}'] = (x_prime_mean * ureg['']).to('mrad')
+    res[f'prime_sigma{suffix}'] = (np.sqrt(x_prime2_mean) * ureg['']).to('mrad')
+    res[f'emittance_tr{suffix}'] = (emittance_tr * ureg.m).to('mm mrad')
+    res[f'emittance_tr_norm{suffix}'] = (emittance_tr_norm * ureg.m).to('mm mrad')
+
     return res
 
 
