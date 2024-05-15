@@ -12,7 +12,7 @@ def gamma(ux, uy, uz):
     return np.sqrt(1 + ux ** 2 + uy ** 2 + uz ** 2)
 
 
-def energy_to_gamma(energy: pint.Quantity, mass: pint.Quantity = None):
+def energy_to_gamma(energy: pint.Quantity, *, mass: pint.Quantity = None):
     """Converts particle energy to the Lorentz factor
 
     Parameters
@@ -34,16 +34,13 @@ def energy_to_gamma(energy: pint.Quantity, mass: pint.Quantity = None):
     return (energy / mass / c ** 2).m_as('') + 1.0
 
 
-def gamma_to_energy(gamma, pint_unit_registry: pint.UnitRegistry, mass: pint.Quantity = None,
-                    units='MeV') -> pint.Quantity:
+def gamma_to_energy(gamma, *, mass: pint.Quantity = None, units='MeV') -> pint.Quantity:
     """Converts particle Lorentz factor to its kinetic energy
 
     Parameters
     ----------
     gamma : float or array
         Lorentz factor of the particle
-    pint_unit_registry : pint.UnitRegistry
-        Unit registry to be used for conversion
     mass : pint.Quantity, optional
         particle mass, by default electron mass
     units : str, optional
@@ -54,10 +51,31 @@ def gamma_to_energy(gamma, pint_unit_registry: pint.UnitRegistry, mass: pint.Qua
     pint.Quantity
         energy in specified units
     """
-    c = pint_unit_registry['speed_of_light']
+    ureg = pint.get_application_registry()
+
+    c = ureg['speed_of_light']
     if mass is None:
-        mass = pint_unit_registry['electron_mass']
+        mass = ureg['electron_mass']
+
+    if isinstance(gamma, pd.Series):
+        gamma = gamma.to_numpy()
     return (mass * c ** 2).to(units) * (gamma - 1.0)
+
+
+def initialize_energy(data, *, mass: pint.Quantity = None, units='MeV'):
+    """Add the 'gamma' and 'energy' field in the bunch data based on momenta 'ux', 'uy', 'uz'.
+
+    Parameters
+    ----------
+    data : dict-like
+        a data-frame of particle data with keys which can be updated
+    mass : pint.Quantity, optional
+        mass of the particle, by default None (electron mass)
+    units : str, optional
+        units to initialize the energy in, by default 'MeV'
+    """
+    data['gamma'] = gamma(data['ux'], data['uy'], data['uz'])
+    data['energy'] = gamma_to_energy(data['gamma'], mass=mass, units=units).m_as(units)
 
 
 def limit_particle_number(data, max_particle_number):

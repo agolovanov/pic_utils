@@ -32,20 +32,22 @@ def bunch_to_wake_t(data, propagation_distance=None):
         prop_distance=z0)
 
 
-def wake_t_to_dict(bunch: wake_t.ParticleBunch):
+def wake_t_to_dict(bunch: wake_t.ParticleBunch, calculate_energy: bool = True):
     """Converts a Wake-T bunch to a dictionary
 
     Parameters
     ----------
     bunch : waket.ParticleBunch
         the bunch
+    calculate_energy : bool
+        whether to calculate gamma and energy, by default True
 
     Returns
     -------
     dict
         dictionary containing x, y, z, ux, uy, uz, w keys with arrays
     """
-    return {
+    res = {
         'x': np.array(bunch.x),
         'y': np.array(bunch.y),
         'z': np.array(bunch.xi) + bunch.prop_distance,
@@ -54,8 +56,13 @@ def wake_t_to_dict(bunch: wake_t.ParticleBunch):
         'uz': np.array(bunch.pz),
         'w': np.array(bunch.w)
     }
+    if calculate_energy:
+        from pic_utils.bunch import initialize_energy
+        initialize_energy(res)
+
+    return res
 
 
-def wake_t_to_pandas(bunch: wake_t.ParticleBunch):
+def wake_t_to_pandas(bunch: wake_t.ParticleBunch, calculate_energy: bool = True):
     import pandas as pd
-    return pd.DataFrame(wake_t_to_dict(bunch), index=np.arange(np.array(bunch.x).size))
+    return pd.DataFrame(wake_t_to_dict(bunch, calculate_energy), index=np.arange(np.array(bunch.x).size))
