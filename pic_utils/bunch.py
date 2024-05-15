@@ -433,3 +433,53 @@ def filter_by_pinhole(data: pd.DataFrame, radius: pint.Quantity, plane: pic_util
 
     r = np.sqrt(data['x'] ** 2 + data['y'] ** 2)
     return data[r < radius]
+
+
+def format_mean_spread(mean, spread):
+    try:
+        if mean.units != spread.units:
+            raise ValueError(f'Units {mean.units} and {spread.units} are not the same')
+        return f'{mean.magnitude:.3g} ± {spread.magnitude:.3g} {mean.units}'
+    except:
+        return f'{mean:.3g} ± {spread:.3g}'
+
+
+def print_bunch_stats(particles: pd.DataFrame):
+    ureg = pint.get_application_registry()
+
+    e = ureg['elementary_charge']
+
+    energies = particles['energy'].to_numpy() * ureg.MeV
+    weights = particles['w'].to_numpy()
+
+    total_weight = np.sum(weights)
+    total_charge = (total_weight * e).to('pC')
+    total_energy = np.sum(weights * energies).to('mJ')
+
+    max_energy = np.max(energies)
+    mean_energy, energy_spread = mean_spread(energies, weights, total_weight=total_weight)
+
+    uz_mean = mean(particles['uz'], weights, total_weight=total_weight)
+
+    stats = transverse_distributions(particles, 'xy', total_weight=total_weight)
+
+    print(f"Number of particles: {particles.size}")
+    print(f"Charge {total_charge:.3g~}, energy {total_energy:.3g~}")
+    print(f"Particle energy: max {max_energy:.3g~}, mean: {mean_energy:.3g~}, spread: {energy_spread:.3g~}")
+
+    print(f'Coordinates: x = {format_mean_spread(stats["mean_x"], stats["sigma_x"])}, '
+          f'y = {format_mean_spread(stats["mean_y"], stats["sigma_y"])}')
+    print(f'Momenta: ux = {format_mean_spread(stats["pmean_x"], stats["psigma_x"])}, '
+          f'uy = {format_mean_spread(stats["pmean_y"], stats["psigma_y"])}, uz = {uz_mean:.3g}')
+    print(f'Pointing angle: x = {stats["prime_mean_x"]:.3g~}, y = {stats["prime_mean_y"]:.3g~}')
+    print(f'Divergence: x = {stats["prime_sigma_x"]:.3g~}, y = {stats["prime_sigma_y"]:.3g~}')
+    print(f'Emittance: x {stats["emittance_tr_x"]:.3g~} (tr), {stats["emittance_x"]:.3g~} (ph)')
+    print(f'           y {stats["emittance_tr_y"]:.3g~} (tr), {stats["emittance_y"]:.3g~} (ph)')
+    print(f'Norm. emittance: x {stats["emittance_tr_norm_x"]:.3g~} (tr), {stats["emittance_norm_x"]:.3g~} (ph)')
+    print(f'                 y {stats["emittance_tr_norm_y"]:.3g~} (tr), {stats["emittance_norm_y"]:.3g~} (ph)')
+
+    return {
+        'total_charge': total_charge,
+        'energies': energies,
+        'weights': weights
+    }
