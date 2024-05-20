@@ -1,7 +1,7 @@
 import numpy as np
 import pint
 
-from pic_utils.json import PintJSONEncoder, PintJSONDecoder
+from pic_utils.json import PintJSONDecoder, PintJSONEncoder
 
 
 def test_encoder_decoder():

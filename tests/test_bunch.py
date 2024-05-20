@@ -1,5 +1,6 @@
-from hypothesis import given, settings, strategies as st
 import numpy as np
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 
 @settings(deadline=None)
@@ -8,7 +9,8 @@ import numpy as np
 )
 def test_gamma_to_energy(gamma):
     import pint
-    from pic_utils.bunch import gamma_to_energy, energy_to_gamma
+
+    from pic_utils.bunch import energy_to_gamma, gamma_to_energy
 
     ureg = pint.UnitRegistry()
 

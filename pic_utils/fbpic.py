@@ -7,9 +7,16 @@ import pint
 from . import materials
 
 
-def add_plasma_profile(simulation: fbpic.main.Simulation, profile, composition: materials.Composition,
-                       particles_per_cell, add_ions=True, ionizable_ions=True, different_ionized_species=True,
-                       **kwargs):
+def add_plasma_profile(
+    simulation: fbpic.main.Simulation,
+    profile,
+    composition: materials.Composition,
+    particles_per_cell,
+    add_ions=True,
+    ionizable_ions=True,
+    different_ionized_species=True,
+    **kwargs,
+):
     """Creates a plasma profile for an FBPIC simulation with electrons and ionizable ions.
 
     Parameters
@@ -40,7 +47,7 @@ def add_plasma_profile(simulation: fbpic.main.Simulation, profile, composition: 
         'electrons_helium_1'.
     """
     if not isinstance(composition.number_density, pint.Quantity):
-        raise ValueError("Currently, only pint.Quantity type of density is expected contain dimensions")
+        raise ValueError('Currently, only pint.Quantity type of density is expected contain dimensions')
 
     ppc_nz, ppc_nr, ppc_nt = particles_per_cell
     sim_kwargs = {'dens_func': profile, 'p_nz': ppc_nz, 'p_nr': ppc_nr, 'p_nt': ppc_nt}
@@ -104,6 +111,7 @@ def setup_mpi(order: int = 32, *, print_details: bool = True) -> dict:
 
     if rank != 0:
         import sys
+
         f = open(os.devnull, 'w')
         sys.stdout = f
 
@@ -121,6 +129,7 @@ def setup_output_folders(base_folder: str | Path, remove_subfolders: bool = Fals
     import shutil
 
     from mpi4py import MPI
+
     rank = MPI.COMM_WORLD.Get_rank()
 
     base_folder = Path(base_folder)
@@ -156,6 +165,7 @@ def setup_simulation_parameters(
     boost_write_period: int = 100,
 ):
     from fbpic.lpa_utils import boosted_frame
+
     ureg = dz._REGISTRY
     c = ureg['speed_of_light']
 
@@ -167,7 +177,7 @@ def setup_simulation_parameters(
         boost = boosted_frame.BoostConverter(gamma_boost)
         print(f'Lorentz boost gamma = {gamma_boost}')
 
-        v_comoving = - np.sqrt(1. - 1. / boost.gamma0 ** 2)
+        v_comoving = -np.sqrt(1.0 - 1.0 / boost.gamma0**2)
         print(f'Adding Galilean comoving frame with v/c={v_comoving:.3g}')
         v_comoving = (c * v_comoving).m_as('m/s')
     else:
@@ -181,15 +191,15 @@ def setup_simulation_parameters(
     dt_lab = (dz / c).to('s')
 
     if use_boost:
-        dt_boost, = boost.copropag_length([dt_lab])
+        (dt_boost,) = boost.copropag_length([dt_lab])
         dt_max = (dr / c).to('s')
         if dt_max < dt_boost:
-            print(f'The timestep has to be no bigger than {dt_max.to("fs"):.3g#~}, '
-                  f'{dt_boost:.3g#~} would be too big')
+            print(
+                f'The timestep has to be no bigger than {dt_max.to("fs"):.3g#~}, ' f'{dt_boost:.3g#~} would be too big'
+            )
             dt_boost = dt_max
         else:
-            print(f'The timestep has to be no bigger than {dt_max.to("fs"):.3g#~}, '
-                  f'actual {dt_boost:.3g#~}')
+            print(f'The timestep has to be no bigger than {dt_max.to("fs"):.3g#~}, ' f'actual {dt_boost:.3g#~}')
     else:
         print(f'Timestep: {dt_lab:.3g#~}')
 
@@ -208,8 +218,10 @@ def setup_simulation_parameters(
     diag_dt_boost = None
 
     if use_boost:
-        interaction_time_boost = boost.interaction_time(interaction_length.m_as('m'), (zmax-zmin).m_as('m'),
-                                                        v_window.m_as('m/s')) * ureg['s']
+        interaction_time_boost = (
+            boost.interaction_time(interaction_length.m_as('m'), (zmax - zmin).m_as('m'), v_window.m_as('m/s'))
+            * ureg['s']
+        )
         print(f'Interaction time in the boosted frame: {interaction_time_boost:.3g#~}')
 
         diag_dt_boost = (interaction_time_boost / (n_diag_timesteps - 1)).to('s')
@@ -225,13 +237,15 @@ def setup_simulation_parameters(
     v_window_magn = v_window.m_as('m/s')
     v_window_boost = v_window_magn
     if use_boost:
-        v_window_boost, = boost.velocity([v_window_boost])
+        (v_window_boost,) = boost.velocity([v_window_boost])
 
     lab_simulation_steps = int((interaction_time // dt_lab).m_as(''))
     if use_boost:
         simulations_steps = int((interaction_time_boost // dt_boost).m_as(''))
-        print(f'Simulation will have {simulations_steps} timesteps '
-              f'({lab_simulation_steps / simulations_steps:.3g}x less than without boost)')
+        print(
+            f'Simulation will have {simulations_steps} timesteps '
+            f'({lab_simulation_steps / simulations_steps:.3g}x less than without boost)'
+        )
     else:
         simulations_steps = lab_simulation_steps
         print(f'Simulation will have {simulations_steps} timesteps')
@@ -251,31 +265,45 @@ def setup_simulation_parameters(
     }
 
     if use_boost:
-        res.update({
-            'boost_diag_dt': diag_dt_boost.m_as('s'),
-            'v_window_lab': v_window_magn,
-            'boost_diag_timesteps': n_diag_timesteps,
-            'boost_write_period': boost_write_period,
-        })
+        res.update(
+            {
+                'boost_diag_dt': diag_dt_boost.m_as('s'),
+                'v_window_lab': v_window_magn,
+                'boost_diag_timesteps': n_diag_timesteps,
+                'boost_write_period': boost_write_period,
+            }
+        )
 
     return res
 
 
-def setup_diagnostics(simulation: fbpic.main.Simulation, simulation_parameters: dict, *, lab_dir=None, boost_dir=None,
-                      fields_lab: list = None, particle_species_lab: dict = None, density_species_lab: dict = None,
-                      particle_select_lab=None):
-
-    from fbpic.openpmd_diag import (BackTransformedFieldDiagnostic, BackTransformedParticleDiagnostic, FieldDiagnostic,
-                                    ParticleChargeDensityDiagnostic, ParticleDiagnostic)
+def setup_diagnostics(
+    simulation: fbpic.main.Simulation,
+    simulation_parameters: dict,
+    *,
+    lab_dir=None,
+    boost_dir=None,
+    fields_lab: list = None,
+    particle_species_lab: dict = None,
+    density_species_lab: dict = None,
+    particle_select_lab=None,
+):
+    from fbpic.openpmd_diag import (
+        BackTransformedFieldDiagnostic,
+        BackTransformedParticleDiagnostic,
+        FieldDiagnostic,
+        ParticleChargeDensityDiagnostic,
+        ParticleDiagnostic,
+    )
 
     diags = []
 
-    zmin = simulation_parameters["zmin"]
-    zmax = simulation_parameters["zmax"]
-    use_boost = simulation_parameters["boost"]
-    lab_dt = simulation_parameters["lab_diag_dt"]
-    lab_timesteps = simulation_parameters["lab_diag_timesteps"]
-    gamma = simulation_parameters["gamma"]
+    zmin = simulation_parameters['zmin']
+    zmax = simulation_parameters['zmax']
+    use_boost = simulation_parameters['boost']
+    lab_dt = simulation_parameters['lab_diag_dt']
+    lab_timesteps = simulation_parameters['lab_diag_timesteps']
+    gamma = simulation_parameters['gamma']
 
     comm = simulation.comm
     fld = simulation.fld
@@ -303,7 +331,7 @@ def setup_diagnostics(simulation: fbpic.main.Simulation, simulation_parameters: 
             print(f'Field diagnostics (lab frame) for: {", ".join(fields_lab)}')
 
         if density_species_lab is not None:
-            print("Particle density diagnostic is not available for the lab frame in boosted frame simulations")
+            print('Particle density diagnostic is not available for the lab frame in boosted frame simulations')
 
         if particle_species_lab is not None:
             diags.append(
@@ -331,13 +359,23 @@ def setup_diagnostics(simulation: fbpic.main.Simulation, simulation_parameters: 
             print(f'Field diagnostics for: {", ".join(fields_lab)}')
 
         if density_species_lab:
-            diags.append(ParticleChargeDensityDiagnostic(dt_period=diag_period, sim=simulation,
-                                                         species=density_species_lab, write_dir=lab_dir))
+            diags.append(
+                ParticleChargeDensityDiagnostic(
+                    dt_period=diag_period, sim=simulation, species=density_species_lab, write_dir=lab_dir
+                )
+            )
             print(f"Density diagnostics for: {', '.join(density_species_lab.keys())}")
 
         if particle_species_lab:
-            diags.append(ParticleDiagnostic(dt_period=diag_period, species=particle_species_lab, comm=comm,
-                                            write_dir=lab_dir, select=particle_select_lab))
+            diags.append(
+                ParticleDiagnostic(
+                    dt_period=diag_period,
+                    species=particle_species_lab,
+                    comm=comm,
+                    write_dir=lab_dir,
+                    select=particle_select_lab,
+                )
+            )
             print(f"Particle diagnostics for: {', '.join(particle_species_lab.keys())}")
 
     simulation.diags = diags
@@ -366,6 +404,7 @@ def prepare_script_folder(script: str | Path, script_folder: str | Path, paramet
         The final script to be run by python followed by command-line arguments passed to the script
     """
     from shutil import copy
+
     import pic_utils.json
 
     script = Path(script)

@@ -29,7 +29,8 @@ def bunch_to_wake_t(data, propagation_distance=None):
         np.array(data['ux']),
         np.array(data['uy']),
         np.array(data['uz']),
-        prop_distance=z0)
+        prop_distance=z0,
+    )
 
 
 def wake_t_to_dict(bunch: wake_t.ParticleBunch, calculate_energy: bool = True):
@@ -54,10 +55,11 @@ def wake_t_to_dict(bunch: wake_t.ParticleBunch, calculate_energy: bool = True):
         'ux': np.array(bunch.px),
         'uy': np.array(bunch.py),
         'uz': np.array(bunch.pz),
-        'w': np.array(bunch.w)
+        'w': np.array(bunch.w),
     }
     if calculate_energy:
         from pic_utils.bunch import initialize_energy
+
         initialize_energy(res)
 
     return res
@@ -65,4 +67,5 @@ def wake_t_to_dict(bunch: wake_t.ParticleBunch, calculate_energy: bool = True):
 
 def wake_t_to_pandas(bunch: wake_t.ParticleBunch, calculate_energy: bool = True):
     import pandas as pd
+
     return pd.DataFrame(wake_t_to_dict(bunch, calculate_energy), index=np.arange(np.array(bunch.x).size))

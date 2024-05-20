@@ -1,7 +1,8 @@
 import numpy as np
-from pic_utils.materials import normalize_shares, calculate_element_shares, Composition
+from hypothesis import given
+from hypothesis import strategies as st
 
-from hypothesis import given, strategies as st
+from pic_utils.materials import Composition, calculate_element_shares, normalize_shares
 
 
 @given(st.lists(elements=st.floats(min_value=1e-5, max_value=1e5, allow_nan=False), min_size=1, max_size=20))
@@ -36,8 +37,8 @@ def test_composition():
     number_density = 1e18
     target = Composition({'helium': 2, 'nitrogen': 1}, number_density=number_density)
 
-    np.testing.assert_almost_equal(target.get_number_density('He'), (2/3) * number_density)
-    np.testing.assert_almost_equal(target.get_number_density('N'), (2/3) * number_density)
+    np.testing.assert_almost_equal(target.get_number_density('He'), (2 / 3) * number_density)
+    np.testing.assert_almost_equal(target.get_number_density('N'), (2 / 3) * number_density)
     np.testing.assert_almost_equal(target.get_number_density('e'), 0)
 
     np.testing.assert_approx_equal(target.get_full_ionization_density(), 6 * number_density)

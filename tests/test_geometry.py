@@ -1,5 +1,7 @@
-from hypothesis import given, strategies as st, settings
 import numpy as np
+from hypothesis import given
+from hypothesis import strategies as st
+
 from pic_utils.geometry import vector_norm
 
 

@@ -1,6 +1,6 @@
 import numpy as _np
-from openpmd_viewer.addons import LpaDiagnostics as _Lpa
 import pandas as _pd
+from openpmd_viewer.addons import LpaDiagnostics as _Lpa
 
 
 class OpenPMDWrapper:
@@ -10,8 +10,9 @@ class OpenPMDWrapper:
 
         self.c = self.ureg['speed_of_light']
 
-    def read_field(self, iteration, field, component=None, *, geometry='xz', grid=False, mode='all',
-                   only_positive_r=False):
+    def read_field(
+        self, iteration, field, component=None, *, geometry='xz', grid=False, mode='all', only_positive_r=False
+    ):
         if geometry == 'xz':
             theta = 0.0
         elif geometry == 'yz':
@@ -55,8 +56,9 @@ class OpenPMDWrapper:
             else:
                 return f
 
-    def read_poynting_vector(self, iteration, component, *, geometry='xz', grid=False, mode='all',
-                             only_positive_r=False):
+    def read_poynting_vector(
+        self, iteration, component, *, geometry='xz', grid=False, mode='all', only_positive_r=False
+    ):
         from .electromagnetism import poynting_vector
 
         if component != 'z':
@@ -97,7 +99,7 @@ class OpenPMDWrapper:
     def iterations(self):
         return self.simulation.iterations
 
-    def times(self, units="s"):
+    def times(self, units='s'):
         return self.simulation.t * self.ureg[units]
 
     def species(self):
@@ -105,7 +107,7 @@ class OpenPMDWrapper:
         return species if species is not None else []
 
     def density_species(self, prefix='rho_'):
-        return [field[len(prefix):] for field in self.simulation.avail_fields if field.startswith(prefix)]
+        return [field[len(prefix) :] for field in self.simulation.avail_fields if field.startswith(prefix)]
 
     def get_laser_frequency(self, iteration, polarization='x', method='max'):
         """

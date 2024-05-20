@@ -13,9 +13,8 @@ AxisStr = Literal['x', 'y', 'z']
 
 
 def gamma(ux, uy, uz):
-    """Calculates the Lorentz factor corresponding to the momentum
-    """
-    return np.sqrt(1 + ux ** 2 + uy ** 2 + uz ** 2)
+    """Calculates the Lorentz factor corresponding to the momentum"""
+    return np.sqrt(1 + ux**2 + uy**2 + uz**2)
 
 
 def energy_to_gamma(energy: pint.Quantity, *, mass: pint.Quantity = None):
@@ -37,7 +36,7 @@ def energy_to_gamma(energy: pint.Quantity, *, mass: pint.Quantity = None):
     c = ureg['speed_of_light']
     if mass is None:
         mass = ureg['electron_mass']
-    return (energy / mass / c ** 2).m_as('') + 1.0
+    return (energy / mass / c**2).m_as('') + 1.0
 
 
 def gamma_to_energy(gamma, *, mass: pint.Quantity = None, units='MeV') -> pint.Quantity:
@@ -65,7 +64,7 @@ def gamma_to_energy(gamma, *, mass: pint.Quantity = None, units='MeV') -> pint.Q
 
     if isinstance(gamma, pd.Series):
         gamma = gamma.to_numpy()
-    return (mass * c ** 2).to(units) * (gamma - 1.0)
+    return (mass * c**2).to(units) * (gamma - 1.0)
 
 
 def initialize_energy(data, *, mass: pint.Quantity = None, units='MeV'):
@@ -107,8 +106,14 @@ def limit_particle_number(data: pd.DataFrame, max_particle_number: int):
     return data
 
 
-def transverse_distributions(data: dict, axis: AxisStr | Iterable[AxisStr], *, total_weight: float | None = None,
-                             suffix: str | None = None, propagation_axis: AxisStr = 'z') -> dict:
+def transverse_distributions(
+    data: dict,
+    axis: AxisStr | Iterable[AxisStr],
+    *,
+    total_weight: float | None = None,
+    suffix: str | None = None,
+    propagation_axis: AxisStr = 'z',
+) -> dict:
     ureg = pint.get_application_registry()
 
     res = {}
@@ -141,10 +146,10 @@ def transverse_distributions(data: dict, axis: AxisStr | Iterable[AxisStr], *, t
     xrel = x - xmean
     prel = p - pmean
 
-    x2_mean = mean(xrel ** 2, weights, total_weight=total_weight)
-    p2_mean = mean(prel ** 2, weights, total_weight=total_weight)
+    x2_mean = mean(xrel**2, weights, total_weight=total_weight)
+    p2_mean = mean(prel**2, weights, total_weight=total_weight)
     xp_mean = mean(xrel * prel, weights, total_weight=total_weight)
-    emittance_norm = np.sqrt(x2_mean * p2_mean - xp_mean ** 2)
+    emittance_norm = np.sqrt(x2_mean * p2_mean - xp_mean**2)
     emittance = emittance_norm / pzmean
 
     res[f'mean{suffix}'] = (xmean * ureg.m).to('um')
@@ -159,9 +164,9 @@ def transverse_distributions(data: dict, axis: AxisStr | Iterable[AxisStr], *, t
     x_prime_mean = mean(x_prime, weights, total_weight=total_weight)
     x_prime_rel = x_prime - x_prime_mean
 
-    x_prime2_mean = mean(x_prime_rel ** 2, weights, total_weight=total_weight)
+    x_prime2_mean = mean(x_prime_rel**2, weights, total_weight=total_weight)
     x_x_prime_mean = mean(xrel * x_prime_rel, weights, total_weight=total_weight)
-    emittance_tr = np.sqrt(x2_mean * x_prime2_mean - x_x_prime_mean ** 2)
+    emittance_tr = np.sqrt(x2_mean * x_prime2_mean - x_x_prime_mean**2)
     emittance_tr_norm = pzmean * emittance_tr
 
     res[f'prime_mean{suffix}'] = (x_prime_mean * ureg['']).to('mrad')
@@ -192,8 +197,9 @@ def spectrum(distribution, weights, *, total_weight=None, min_value=None, max_va
     else:
         unit = None
 
-    sp, values = np.histogram(distribution, weights=weights, range=(min_value, max_value), bins=nbins,
-                              density=total_weight > 0)
+    sp, values = np.histogram(
+        distribution, weights=weights, range=(min_value, max_value), bins=nbins, density=total_weight > 0
+    )
     values = 0.5 * (values[1:] + values[:-1])
     if unit is not None:
         values = values * unit
@@ -221,8 +227,8 @@ def project_to_plane(data, plane: pic_utils.geometry.Plane, plane_coordinates=Tr
         three arrays corresponding to x, y, z, otherwise
     """
     n_origin = np.dot(plane.origin, plane.norm)
-    n_r = (plane.norm[0] * data['x'] + plane.norm[1] * data['y'] + plane.norm[2] * data['z'])
-    n_v = (plane.norm[0] * data['ux'] + plane.norm[1] * data['uy'] + plane.norm[2] * data['uz'])
+    n_r = plane.norm[0] * data['x'] + plane.norm[1] * data['y'] + plane.norm[2] * data['z']
+    n_v = plane.norm[0] * data['ux'] + plane.norm[1] * data['uy'] + plane.norm[2] * data['uz']
     tau = (n_origin - n_r) / n_v
     x = data['x'] + data['ux'] * tau
     y = data['y'] + data['uy'] * tau
@@ -269,7 +275,7 @@ def propagate_through_magnet_relativistic(data, B0, length, *, axis='x'):
 
     B0 = B0.to('gauss', 'Gau')
     z0 = length.m_as('m')
-    du = (e * B0 * length / m / c ** 2).m_as('')
+    du = (e * B0 * length / m / c**2).m_as('')
 
     if axis == 'x':
         x, ux = data['x'], data['ux']
@@ -357,20 +363,20 @@ def propagate_through_magnet(data, B0, length, transverse_max=None, *, axis='x')
     if transverse_max is not None:
         transverse_max = transverse_max.m_as('m')
         if omega0_base > 0:
-            cos_max = - k0_base / u_perp * (transverse_max - x_center)
+            cos_max = -k0_base / u_perp * (transverse_max - x_center)
             cos_max[np.abs(cos_max) > 1.0] = 1.0
-            sin_max = np.sqrt(1 - cos_max ** 2)
+            sin_max = np.sqrt(1 - cos_max**2)
             sin_exit = np.minimum(sin_max, sin_exit)
         else:
-            cos_max = - k0_base / u_perp * (- transverse_max - x_center)
+            cos_max = -k0_base / u_perp * (-transverse_max - x_center)
             cos_max[np.abs(cos_max) > 1.0] = 1.0
-            sin_max = - np.sqrt(1 - cos_max ** 2)
+            sin_max = -np.sqrt(1 - cos_max**2)
             sin_exit = np.maximum(sin_max, sin_exit)
         data['cos_max'] = cos_max
 
     data['sin_exit'] = sin_exit
 
-    cos_exit = np.sqrt(1 - sin_exit ** 2)
+    cos_exit = np.sqrt(1 - sin_exit**2)
 
     t_exit = (np.arcsin(sin_exit) - theta_x) / omega0
 
@@ -404,7 +410,9 @@ def propagate_through_thin_quadrupole(data, focal_length, design_energy):
     data['uy'] += gamma_design / focal_length * data['y']
 
 
-def filter_by_pinhole(data: pd.DataFrame, radius: pint.Quantity, plane: pic_utils.geometry.Plane | float = None) -> pd.DataFrame:
+def filter_by_pinhole(
+    data: pd.DataFrame, radius: pint.Quantity, plane: pic_utils.geometry.Plane | float = None
+) -> pd.DataFrame:
     """Filters the bunch by a pinhole.
 
     Parameters
@@ -463,14 +471,18 @@ def print_bunch_stats(particles: pd.DataFrame):
 
     stats = transverse_distributions(particles, 'xy', total_weight=total_weight)
 
-    print(f"Number of particles: {particles.size}")
-    print(f"Charge {total_charge:.3g~}, energy {total_energy:.3g~}")
-    print(f"Particle energy: max {max_energy:.3g~}, mean: {mean_energy:.3g~}, spread: {energy_spread:.3g~}")
+    print(f'Number of particles: {particles.size}')
+    print(f'Charge {total_charge:.3g~}, energy {total_energy:.3g~}')
+    print(f'Particle energy: max {max_energy:.3g~}, mean: {mean_energy:.3g~}, spread: {energy_spread:.3g~}')
 
-    print(f'Coordinates: x = {format_mean_spread(stats["mean_x"], stats["sigma_x"])}, '
-          f'y = {format_mean_spread(stats["mean_y"], stats["sigma_y"])}')
-    print(f'Momenta: ux = {format_mean_spread(stats["pmean_x"], stats["psigma_x"])}, '
-          f'uy = {format_mean_spread(stats["pmean_y"], stats["psigma_y"])}, uz = {uz_mean:.3g}')
+    print(
+        f'Coordinates: x = {format_mean_spread(stats["mean_x"], stats["sigma_x"])}, '
+        f'y = {format_mean_spread(stats["mean_y"], stats["sigma_y"])}'
+    )
+    print(
+        f'Momenta: ux = {format_mean_spread(stats["pmean_x"], stats["psigma_x"])}, '
+        f'uy = {format_mean_spread(stats["pmean_y"], stats["psigma_y"])}, uz = {uz_mean:.3g}'
+    )
     print(f'Pointing angle: x = {stats["prime_mean_x"]:.3g~}, y = {stats["prime_mean_y"]:.3g~}')
     print(f'Divergence: x = {stats["prime_sigma_x"]:.3g~}, y = {stats["prime_sigma_y"]:.3g~}')
     print(f'Emittance: x {stats["emittance_tr_x"]:.3g~} (tr), {stats["emittance_x"]:.3g~} (ph)')
@@ -478,8 +490,4 @@ def print_bunch_stats(particles: pd.DataFrame):
     print(f'Norm. emittance: x {stats["emittance_tr_norm_x"]:.3g~} (tr), {stats["emittance_norm_x"]:.3g~} (ph)')
     print(f'                 y {stats["emittance_tr_norm_y"]:.3g~} (tr), {stats["emittance_norm_y"]:.3g~} (ph)')
 
-    return {
-        'total_charge': total_charge,
-        'energies': energies,
-        'weights': weights
-    }
+    return {'total_charge': total_charge, 'energies': energies, 'weights': weights}

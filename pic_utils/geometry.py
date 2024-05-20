@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Plane:
     def __init__(self, origin, v1, v2):
         """Creates a plane representation

@@ -1,6 +1,7 @@
-from hypothesis import given, strategies as st
-import pint
 import numpy as np
+import pint
+from hypothesis import given
+from hypothesis import strategies as st
 
 ureg = pint.UnitRegistry()
 
@@ -8,16 +9,16 @@ ureg = pint.UnitRegistry()
 def test_plasma_units_pint():
     from pic_utils.plasma import PlasmaUnits
 
-    pu = PlasmaUnits(1e18 * ureg.cm ** -3)
+    pu = PlasmaUnits(1e18 * ureg.cm**-3)
 
     np.testing.assert_allclose(pu.wavelength.to('um').magnitude, 33, rtol=0.05)
 
-    pu = PlasmaUnits(1e18 * ureg.cm ** -3, units={'length': 'um'})
+    pu = PlasmaUnits(1e18 * ureg.cm**-3, units={'length': 'um'})
     np.testing.assert_allclose(pu.wavelength.magnitude, 33, rtol=0.05)
 
     densities = np.logspace(10, 25, 100)
     for density in densities:
-        pu = PlasmaUnits(density * ureg.cm ** -3)
+        pu = PlasmaUnits(density * ureg.cm**-3)
         np.testing.assert_allclose((pu.wavelength * pu.wavenumber).to('').magnitude, 2 * np.pi)
 
 

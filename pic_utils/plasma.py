@@ -8,7 +8,7 @@ default_units = {
     'B': 'T',
     'charge': 'C',
     'charge_cgs': 'esu',
-    'mass': 'kg'
+    'mass': 'kg',
 }
 
 
@@ -28,7 +28,7 @@ class PlasmaUnits:
         import numpy as np
 
         if not isinstance(base_unit, pint.Quantity):
-            raise ValueError("Base unit should be of pint.Quantity type and contain units")
+            raise ValueError('Base unit should be of pint.Quantity type and contain units')
         ureg = base_unit._REGISTRY
 
         self.default_units = default_units.copy()
@@ -43,26 +43,28 @@ class PlasmaUnits:
 
         if base_unit.check({'[length]': -3}):  # density
             self.density = base_unit.to(du['density'])
-            self.frequency = np.sqrt(4 * np.pi * self.e_cgs ** 2 * self.density / self.m_e).to(1 / ureg(du['time']))
+            self.frequency = np.sqrt(4 * np.pi * self.e_cgs**2 * self.density / self.m_e).to(1 / ureg(du['time']))
             self.wavenumber = (self.frequency / self.c).to(1 / ureg(du['length']))
             self.wavelength = (2 * np.pi / self.wavenumber).to(du['length'])
         elif base_unit.check({'[length]': 1}):  # wavelength
             self.wavelength = base_unit.to(du['length'])
             self.wavenumber = (2 * np.pi / self.wavelength).to(1 / ureg(du['length']))
             self.frequency = (self.c * self.wavenumber).to(1 / ureg(du['time']))
-            self.density = (self.m_e * self.frequency ** 2 / (4 * np.pi * self.e_cgs ** 2)).to(du['density'])
+            self.density = (self.m_e * self.frequency**2 / (4 * np.pi * self.e_cgs**2)).to(du['density'])
         elif base_unit.check({'[time]': -1}):  # frequency
             self.frequency = base_unit.to(1 / ureg(du['time']))
             self.wavenumber = (self.frequency / self.c).to(1 / ureg(du['length']))
             self.wavelength = (2 * np.pi / self.wavenumber).to(du['length'])
-            self.density = (self.m_e * self.frequency ** 2 / (4 * np.pi * self.e_cgs ** 2)).to(du['density'])
+            self.density = (self.m_e * self.frequency**2 / (4 * np.pi * self.e_cgs**2)).to(du['density'])
         else:
-            raise ValueError(f'Value {base_unit:.3g~} has wrong units {base_unit.units}; '
-                             'only densities, wavelengths and frequencies are allowed')
+            raise ValueError(
+                f'Value {base_unit:.3g~} has wrong units {base_unit.units}; '
+                'only densities, wavelengths and frequencies are allowed'
+            )
 
         self.charge_density = self.density * self.e
 
-        self.E = (self.m_e * self.c ** 2 * self.wavenumber / self.e_cgs).to(du['E'], 'Gau')
+        self.E = (self.m_e * self.c**2 * self.wavenumber / self.e_cgs).to(du['E'], 'Gau')
         self.B = self.E.to(du['B'], 'Gau')
 
     def __str__(self) -> str:

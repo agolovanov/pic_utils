@@ -1,12 +1,14 @@
-import pandas as _pd
 import numpy as _np
+import pandas as _pd
 
 
 class FieldProbe2D:
     import pint
+
     """
     Class representing a 2D field probe.
     """
+
     def __init__(self, path, ureg: pint.UnitRegistry) -> None:
         """Creates a 2D field probe
 
@@ -44,18 +46,18 @@ class FieldProbe2D:
         r = df0[['x', 'y', 'z']].to_numpy() * ureg.m
 
         self.v1 = r[1] - r[0]
-        self.d1 = _np.sqrt(_np.sum(self.v1 ** 2))
+        self.d1 = _np.sqrt(_np.sum(self.v1**2))
 
         v_diag = r[-1] - r[0]
         self.r_center = r[0] + 0.5 * v_diag
-        shape_v1 = round((v_diag @ self.v1 / self.d1 ** 2).m_as('')) + 1
+        shape_v1 = round((v_diag @ self.v1 / self.d1**2).m_as('')) + 1
         r = r.reshape(shape_v1, -1, 3)
 
         self.r = r
 
         self.shape = r.shape[:2]
         self.v2 = r[1, 0] - r[0, 0]
-        self.d2 = _np.sqrt(_np.sum(self.v2 ** 2))
+        self.d2 = _np.sqrt(_np.sum(self.v2**2))
 
         self.vn = _np.cross(self.v1, self.v2)
 
@@ -72,11 +74,11 @@ class FieldProbe2D:
     def __str__(self) -> str:
         n1, n2 = self.shape
 
-        return (f'2D field probe {n1}×{n2} at {self.r_center:g~}')
+        return f'2D field probe {n1}×{n2} at {self.r_center:g~}'
 
     def __repr__(self) -> str:
         return str(self)
-    
+
     def field_unit(self, field):
         if field in ('Ex', 'Ey', 'Ez'):
             unit = self.ureg['V/m']

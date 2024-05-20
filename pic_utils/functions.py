@@ -1,5 +1,5 @@
-import numpy as np
 import numba
+import numpy as np
 
 
 def full_width_at_level(f, x, level, bounds=False, interpolate=True):
@@ -158,6 +158,7 @@ def mean_spread(distribution, weights, *, total_weight=None):
 
 def density_1d(values, weights, grid):
     import pint
+
     if isinstance(grid, pint.Quantity):
         values = values.m_as(grid.units)
         grid = grid.magnitude
@@ -166,7 +167,7 @@ def density_1d(values, weights, grid):
     weights = np.array(weights)
 
     if values.size != weights.size:
-        raise ValueError(f"The sizes of values ({values.size}) and weights ({weights.size}) are not the same")
+        raise ValueError(f'The sizes of values ({values.size}) and weights ({weights.size}) are not the same')
 
     return _density_1d_compiled(values, weights, np.min(grid), np.max(grid), len(grid))
 
@@ -186,13 +187,23 @@ def _density_1d_compiled(values, weights, grid_start, grid_end, grid_size):
             if n_cell != -1:
                 grid_values[n_cell] += b * w
             if n_cell != grid_size - 1:
-                grid_values[n_cell+1] += a * w
+                grid_values[n_cell + 1] += a * w
     return grid_values
 
 
 @numba.njit
-def _density_2d_compiled(grid_values, values_x, values_y, weights, grid_start_x, grid_end_x, grid_size_x, grid_start_y,
-                         grid_end_y, grid_size_y):
+def _density_2d_compiled(
+    grid_values,
+    values_x,
+    values_y,
+    weights,
+    grid_start_x,
+    grid_end_x,
+    grid_size_x,
+    grid_start_y,
+    grid_end_y,
+    grid_size_y,
+):
     grid_step_x = (grid_end_x - grid_start_x) / (grid_size_x - 1)
     grid_step_y = (grid_end_y - grid_start_y) / (grid_size_y - 1)
     v_size = len(values_x)
@@ -211,11 +222,11 @@ def _density_2d_compiled(grid_values, values_x, values_y, weights, grid_start_x,
             if nx != -1 and ny != -1:
                 grid_values[nx, ny] += bx * by * w
             if nx != grid_size_x - 1 and ny != -1:
-                grid_values[nx+1, ny] += ax * by * w
+                grid_values[nx + 1, ny] += ax * by * w
             if nx != -1 and ny != grid_size_y - 1:
-                grid_values[nx, ny+1] += bx * ay * w
+                grid_values[nx, ny + 1] += bx * ay * w
             if nx != grid_size_x - 1 and ny != grid_size_y - 1:
-                grid_values[nx+1, ny+1] += ax * ay * w
+                grid_values[nx + 1, ny + 1] += ax * ay * w
 
 
 def density_2d(values_x, values_y, weights, grid_x, grid_y):
@@ -239,9 +250,9 @@ def density_2d(values_x, values_y, weights, grid_x, grid_y):
     grid_size_y = grid_y.size
 
     if values_x.size != values_y.size:
-        raise ValueError(f"The sizes of values_x ({values_x.size}) and values_y ({values_y.size}) are not the same")
+        raise ValueError(f'The sizes of values_x ({values_x.size}) and values_y ({values_y.size}) are not the same')
     if values_x.size != weights.size:
-        raise ValueError(f"The sizes of values_x ({values_x.size}) and weights ({weights.size}) are not the same")
+        raise ValueError(f'The sizes of values_x ({values_x.size}) and weights ({weights.size}) are not the same')
 
     grid_values = np.zeros((grid_size_x, grid_size_y), dtype=values_x.dtype)
 

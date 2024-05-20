@@ -2,7 +2,7 @@ import numpy as np
 from hypothesis import given
 from hypothesis import strategies as st
 
-from pic_utils.functions import full_width_at_level, fwhm, full_width_at_level_radial, fwhm_radial
+from pic_utils.functions import full_width_at_level, full_width_at_level_radial, fwhm, fwhm_radial
 
 
 @given(
@@ -16,7 +16,7 @@ def test_fwhm_gaussian(x0, sigma, xlow, xhigh, number_of_points):
     number_of_points = (int)(number_of_points * (xhigh + xlow))
 
     x = np.linspace(x0 - xlow * sigma, x0 + xhigh * sigma, number_of_points)
-    f = np.exp(- (x - x0) ** 2 / sigma ** 2)
+    f = np.exp(-((x - x0) ** 2) / sigma**2)
 
     fwhm_expected = sigma * 2 * np.sqrt(np.log(2))
 
@@ -35,7 +35,7 @@ def test_width_gaussian(x0, sigma, xlow, xhigh, level, number_of_points):
     number_of_points = (int)(number_of_points * (xhigh + xlow))
 
     x = np.linspace(x0 - xlow * sigma, x0 + xhigh * sigma, number_of_points)
-    f = np.exp(- (x - x0) ** 2 / sigma ** 2)
+    f = np.exp(-((x - x0) ** 2) / sigma**2)
 
     width_expected = sigma * 2 * np.sqrt(-np.log(level))
 
@@ -52,7 +52,7 @@ def test_fwhm_radial_gaussian(sigma, rmax, number_of_points):
     number_of_points = (int)(number_of_points * rmax)
 
     r = np.linspace(0, rmax * sigma, number_of_points)
-    f = np.exp(- r ** 2 / sigma ** 2)
+    f = np.exp(-(r**2) / sigma**2)
 
     fwhm_expected = sigma * 2 * np.sqrt(np.log(2))
 
@@ -69,7 +69,7 @@ def test_width_radial_gaussian(sigma, rmax, level, number_of_points):
     number_of_points = (int)(number_of_points * rmax)
 
     r = np.linspace(0, rmax * sigma, number_of_points)
-    f = np.exp(- r ** 2 / sigma ** 2)
+    f = np.exp(-(r**2) / sigma**2)
 
     width_expected = sigma * 2 * np.sqrt(-np.log(level))
 

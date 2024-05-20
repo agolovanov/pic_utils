@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 import mendeleev
 
 
@@ -7,6 +8,7 @@ class Element:
     """
     Represents a chemical element
     """
+
     name: str
     symbol: str
     atomic_number: int
@@ -127,7 +129,7 @@ class Composition:
                 level = ionization_levels[el.symbol]
                 if level > el.atomic_number:
                     raise ValueError(
-                        f"Ionization level for {el.symbol} {level} higher than the atomic number {el.atomic_number}"
+                        f'Ionization level for {el.symbol} {level} higher than the atomic number {el.atomic_number}'
                     )
                 self.ionization_levels[el] = level
             else:
