@@ -461,6 +461,7 @@ def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None 
     ureg = pint.get_application_registry()
 
     e = ureg['elementary_charge']
+    c = ureg['speed_of_light']
 
     energies = particles['energy'].to_numpy() * ureg.MeV
     weights = particles['w'].to_numpy()
@@ -485,15 +486,23 @@ def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None 
         particles, transverse_axes, total_weight=total_weight, propagation_axis=propagation_axis
     )
 
+    long_mean, long_sigma = mean_spread(particles[propagation_axis], weights, total_weight=total_weight)
+    long_mean = (long_mean * ureg.m).to('um')
+    long_sigma = (long_sigma * ureg.m).to('um')
+    long_duration = (long_sigma / c).to('fs')
+
     print(f'Number of particles: {particles.size}')
-    print(f'Charge {total_charge:.3g~}, energy {total_energy:.3g~}')
-    print(f'Particle energy: max {max_energy:.3g~}, mean: {mean_energy:.3g~}, spread: {energy_spread:.3g~}')
+    print(f'Charge {total_charge:.3g#~}, energy {total_energy:.3g#~}')
+    print(f'Particle energy: max {max_energy:.3g#~}, mean: {mean_energy:.3g#~}, spread: {energy_spread:.3g#~}')
 
     ax1, ax2 = transverse_axes
 
     print(
         f'Coordinates: {ax1} = {format_mean_spread(stats[f"mean_{ax1}"], stats[f"sigma_{ax1}"])}, '
         f'{ax2} = {format_mean_spread(stats[f"mean_{ax2}"], stats[f"sigma_{ax2}"])}'
+    )
+    print(
+        f'             {propagation_axis} = {format_mean_spread(long_mean, long_sigma)} (duration {long_duration:.3g#~})'
     )
 
     print(
