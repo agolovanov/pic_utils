@@ -1,10 +1,8 @@
 [project]
 name = "pic_utils"
-version = "0.20.0"
+version = "0.21.0"
 description = "Various utilities for running PIC-based codes and analyzing their results"
-authors = [
-    {name = "Anton Golovanov"},
-]
+authors = [{ name = "Anton Golovanov" }]
 
 [build-system]
 requires = ["setuptools"]
@@ -14,6 +12,4 @@ build-backend = "setuptools.build_meta"
 include = ["pic_utils*"]
 
 [tool.pytest.ini_options]
-pythonpath = [
-  "."
-]
+pythonpath = ["."]

@@ -3,7 +3,7 @@ from collections.abc import Iterable
 import numpy as np
 import pandas as pd
 import pint
-from typing_extensions import Literal
+from typing_extensions import Literal, Tuple
 
 import pic_utils.geometry
 
@@ -127,7 +127,11 @@ def transverse_distributions(
         for ax in axis:
             if suffix is not None:
                 suffix = suffix + f'_{ax}'
-            res.update(transverse_distributions(data, ax, total_weight=total_weight, suffix=suffix))
+            res.update(
+                transverse_distributions(
+                    data, ax, total_weight=total_weight, suffix=suffix, propagation_axis=propagation_axis
+                )
+            )
         return res
     else:
         raise ValueError(f'axis can only be x, y, z or a sequence of those, {axis} is wrong')
@@ -139,7 +143,8 @@ def transverse_distributions(
     if suffix is None:
         suffix = f'_{axis}'
 
-    pzmean = mean(data['uz'], weights, total_weight=total_weight)
+    u_long = data[f'u{propagation_axis}']
+    u_long_mean = mean(u_long, weights, total_weight=total_weight)
 
     xmean = mean(x, weights, total_weight=total_weight)
     pmean = mean(p, weights, total_weight=total_weight)
@@ -150,7 +155,7 @@ def transverse_distributions(
     p2_mean = mean(prel**2, weights, total_weight=total_weight)
     xp_mean = mean(xrel * prel, weights, total_weight=total_weight)
     emittance_norm = np.sqrt(x2_mean * p2_mean - xp_mean**2)
-    emittance = emittance_norm / pzmean
+    emittance = emittance_norm / u_long_mean
 
     res[f'mean{suffix}'] = (xmean * ureg.m).to('um')
     res[f'sigma{suffix}'] = (np.sqrt(x2_mean) * ureg.m).to('um')
@@ -159,7 +164,7 @@ def transverse_distributions(
     res[f'emittance{suffix}'] = (emittance * ureg.m).to('mm mrad')
     res[f'emittance_norm{suffix}'] = (emittance_norm * ureg.m).to('mm mrad')
 
-    x_prime = p / data['uz']
+    x_prime = p / u_long
 
     x_prime_mean = mean(x_prime, weights, total_weight=total_weight)
     x_prime_rel = x_prime - x_prime_mean
@@ -167,7 +172,7 @@ def transverse_distributions(
     x_prime2_mean = mean(x_prime_rel**2, weights, total_weight=total_weight)
     x_x_prime_mean = mean(xrel * x_prime_rel, weights, total_weight=total_weight)
     emittance_tr = np.sqrt(x2_mean * x_prime2_mean - x_x_prime_mean**2)
-    emittance_tr_norm = pzmean * emittance_tr
+    emittance_tr_norm = u_long_mean * emittance_tr
 
     res[f'prime_mean{suffix}'] = (x_prime_mean * ureg['']).to('mrad')
     res[f'prime_sigma{suffix}'] = (np.sqrt(x_prime2_mean) * ureg['']).to('mrad')
@@ -452,7 +457,7 @@ def format_mean_spread(mean, spread):
         return f'{mean:.3g} ± {spread:.3g}'
 
 
-def print_bunch_stats(particles: pd.DataFrame):
+def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None = None):
     ureg = pint.get_application_registry()
 
     e = ureg['elementary_charge']
@@ -467,27 +472,101 @@ def print_bunch_stats(particles: pd.DataFrame):
     max_energy = np.max(energies)
     mean_energy, energy_spread = mean_spread(energies, weights, total_weight=total_weight)
 
-    uz_mean = mean(particles['uz'], weights, total_weight=total_weight)
+    if propagation_axis is None:
+        propagation_axis, mean_u = find_propagation_axis(particles, total_weight=total_weight, return_mean_momenta=True)
+        print(f'Propagation axis of the bunch: {propagation_axis}')
+        ulong_mean = mean_u[f'u{propagation_axis}']
+    else:
+        ulong_mean = mean(particles[f'u{propagation_axis}'], weights, total_weight=total_weight)
 
-    stats = transverse_distributions(particles, 'xy', total_weight=total_weight)
+    transverse_axes = get_transverse_axes(propagation_axis)
+
+    stats = transverse_distributions(
+        particles, transverse_axes, total_weight=total_weight, propagation_axis=propagation_axis
+    )
 
     print(f'Number of particles: {particles.size}')
     print(f'Charge {total_charge:.3g~}, energy {total_energy:.3g~}')
     print(f'Particle energy: max {max_energy:.3g~}, mean: {mean_energy:.3g~}, spread: {energy_spread:.3g~}')
 
+    ax1, ax2 = transverse_axes
+
     print(
-        f'Coordinates: x = {format_mean_spread(stats["mean_x"], stats["sigma_x"])}, '
-        f'y = {format_mean_spread(stats["mean_y"], stats["sigma_y"])}'
+        f'Coordinates: {ax1} = {format_mean_spread(stats[f"mean_{ax1}"], stats[f"sigma_{ax1}"])}, '
+        f'{ax2} = {format_mean_spread(stats[f"mean_{ax2}"], stats[f"sigma_{ax2}"])}'
+    )
+
+    print(
+        f'Momenta: u{ax1} = {format_mean_spread(stats[f"pmean_{ax1}"], stats[f"psigma_{ax1}"])}, '
+        f'u{ax2} = {format_mean_spread(stats[f"pmean_{ax2}"], stats[f"psigma_{ax2}"])}, u{propagation_axis} = {ulong_mean:.3g}'
+    )
+    print(f'Pointing angle: {ax1} = {stats[f"prime_mean_{ax1}"]:.3g~}, {ax2} = {stats[f"prime_mean_{ax2}"]:.3g~}')
+    print(f'Divergence: {ax1} = {stats[f"prime_sigma_{ax1}"]:.3g~}, {ax2} = {stats[f"prime_sigma_{ax2}"]:.3g~}')
+    print(f'Emittance: {ax1} {stats[f"emittance_tr_{ax1}"]:.3g~} (tr), {stats[f"emittance_{ax1}"]:.3g~} (ph)')
+    print(f'           {ax2} {stats[f"emittance_tr_{ax2}"]:.3g~} (tr), {stats[f"emittance_{ax2}"]:.3g~} (ph)')
+    print(
+        f'Norm. emittance: {ax1} {stats[f"emittance_tr_norm_{ax1}"]:.3g~} (tr), {stats[f"emittance_norm_{ax1}"]:.3g~} (ph)'
     )
     print(
-        f'Momenta: ux = {format_mean_spread(stats["pmean_x"], stats["psigma_x"])}, '
-        f'uy = {format_mean_spread(stats["pmean_y"], stats["psigma_y"])}, uz = {uz_mean:.3g}'
+        f'                 {ax2} {stats[f"emittance_tr_norm_{ax2}"]:.3g~} (tr), {stats[f"emittance_norm_{ax2}"]:.3g~} (ph)'
     )
-    print(f'Pointing angle: x = {stats["prime_mean_x"]:.3g~}, y = {stats["prime_mean_y"]:.3g~}')
-    print(f'Divergence: x = {stats["prime_sigma_x"]:.3g~}, y = {stats["prime_sigma_y"]:.3g~}')
-    print(f'Emittance: x {stats["emittance_tr_x"]:.3g~} (tr), {stats["emittance_x"]:.3g~} (ph)')
-    print(f'           y {stats["emittance_tr_y"]:.3g~} (tr), {stats["emittance_y"]:.3g~} (ph)')
-    print(f'Norm. emittance: x {stats["emittance_tr_norm_x"]:.3g~} (tr), {stats["emittance_norm_x"]:.3g~} (ph)')
-    print(f'                 y {stats["emittance_tr_norm_y"]:.3g~} (tr), {stats["emittance_norm_y"]:.3g~} (ph)')
 
     return {'total_charge': total_charge, 'energies': energies, 'weights': weights}
+
+
+def find_propagation_axis(
+    particles: dict, *, total_weight: float | None = None, return_mean_momenta: bool = False
+) -> AxisStr | Tuple[AxisStr, dict]:
+    """Finds the propagation axis of the bunch
+
+    Parameters
+    ----------
+    particles : dict
+        bunch data which must contain keys 'ux', 'uy', 'uz', 'w'
+    total_weight : float | None, optional
+        the total weight of the bunch, by default None
+    return_mean_momenta : bool, optional
+        whether to add the mean momenta to the output, by default False
+
+    Returns
+    -------
+    AxisStr | Tuple[AxisStr, dict]
+        either an axis or a tuple of an axis and a dict of mean 'ux', 'uy', 'uz' values
+    """
+    if total_weight is None:
+        total_weight = particles['w'].sum()
+
+    axes = ['x', 'y', 'z']
+    momenta_axes = [f'u{ax}' for ax in axes]
+    mean_u = {u: mean(particles[u], weights=particles['w'], total_weight=total_weight) for u in momenta_axes}
+
+    res = axes[np.argmax(np.abs(list(mean_u.values())))]
+
+    if return_mean_momenta:
+        return res, mean_u
+    else:
+        return res
+
+
+def get_transverse_axes(axis: AxisStr) -> Tuple[AxisStr, AxisStr]:
+    """Gives the axes transverse to the given axis
+
+    Parameters
+    ----------
+    axis : AxisStr
+        the axis
+
+    Returns
+    -------
+    tuple
+        axes transverse to the given axis
+
+    """
+    if axis == 'x':
+        return 'y', 'z'
+    elif axis == 'y':
+        return 'x', 'z'
+    elif axis == 'z':
+        return 'x', 'y'
+    else:
+        raise ValueError(f'Unknown axis {axis}')
