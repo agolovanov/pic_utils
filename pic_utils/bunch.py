@@ -491,7 +491,7 @@ def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None 
     long_sigma = (long_sigma * ureg.m).to('um')
     long_duration = (long_sigma / c).to('fs')
 
-    print(f'Number of particles: {particles.size}')
+    print(f'Number of particles: {len(particles.index)}')
     print(f'Charge {total_charge:.3g#~}, energy {total_energy:.3g#~}')
     print(f'Particle energy: max {max_energy:.3g#~}, mean: {mean_energy:.3g#~}, spread: {energy_spread:.3g#~}')
 
