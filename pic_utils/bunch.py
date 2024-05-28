@@ -470,6 +470,7 @@ def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None 
     total_charge = (total_weight * e).to('pC')
     total_energy = np.sum(weights * energies).to('mJ')
 
+    min_energy = np.min(energies)
     max_energy = np.max(energies)
     mean_energy, energy_spread = mean_spread(energies, weights, total_weight=total_weight)
 
@@ -493,7 +494,9 @@ def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None 
 
     print(f'Number of particles: {len(particles.index)}')
     print(f'Charge {total_charge:.3g#~}, energy {total_energy:.3g#~}')
-    print(f'Particle energy: max {max_energy:.3g#~}, mean: {mean_energy:.3g#~}, spread: {energy_spread:.3g#~}')
+    print(
+        f'Particle energy: min {min_energy:.3g#~}, max {max_energy:.3g#~}, mean: {mean_energy:.3g#~}, spread: {energy_spread:.3g#~}'
+    )
 
     ax1, ax2 = transverse_axes
 
