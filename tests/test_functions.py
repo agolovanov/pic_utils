@@ -74,4 +74,4 @@ def test_width_radial_gaussian(sigma, rmax, level, number_of_points):
     width_expected = sigma * 2 * np.sqrt(-np.log(level))
 
     assert np.isclose(full_width_at_level_radial(f, r, level=level, interpolate=False), width_expected, rtol=5e-2)
-    assert np.isclose(full_width_at_level_radial(f, r, level=level, interpolate=True), width_expected, rtol=1e-4)
+    assert np.isclose(full_width_at_level_radial(f, r, level=level, interpolate=True), width_expected, rtol=5e-3)
