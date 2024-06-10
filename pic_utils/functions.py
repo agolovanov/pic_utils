@@ -1,5 +1,6 @@
 import numba
 import numpy as np
+import pint
 
 
 def full_width_at_level(f, x, level, bounds=False, interpolate=True):
@@ -259,3 +260,46 @@ def density_2d(values_x, values_y, weights, grid_x, grid_y):
     _density_2d_compiled(grid_values, values_x, values_y, weights, x_min, x_max, grid_size_x, y_min, y_max, grid_size_y)
 
     return grid_values
+
+
+def running_mean(values, window_size: int, *, axis: int = 0):
+    """Calculates the running mean of the array using the Blackman window function (np.blackman)
+
+    Parameters
+    ----------
+    values : array
+        the inpute array
+    window_size : int
+        the size of the window for the running
+    axis : int, optional
+        the direction along which to apply the mean, by default 0
+
+    Returns
+    -------
+    array
+        the mean array with the same shape size as values
+
+    Raises
+    ------
+    ValueError
+        if the window size is larger than the size of the array
+    """
+    if window_size > values.shape[axis]:
+        raise ValueError(f'The window size {window_size} is larger than the size of axis {axis}: {values.shape[axis]}')
+    window = np.blackman(window_size)
+
+    if isinstance(values, pint.Quantity):
+        values_nodim = values.magnitude
+    else:
+        values_nodim = values
+
+    def convolution_func(arr):
+        return np.convolve(arr, window, mode='same')
+
+    normalization = np.apply_along_axis(convolution_func, axis=axis, arr=np.ones(values_nodim.shape))
+    res = np.apply_along_axis(convolution_func, axis=axis, arr=values_nodim) / normalization
+
+    if isinstance(values, pint.Quantity):
+        res = res * values.units
+
+    return res

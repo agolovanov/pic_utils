@@ -1,8 +1,12 @@
 import numpy as np
+import pint
 from hypothesis import given
 from hypothesis import strategies as st
+from hypothesis.extra.numpy import arrays, array_shapes
 
-from pic_utils.functions import full_width_at_level, full_width_at_level_radial, fwhm, fwhm_radial
+from pic_utils.functions import full_width_at_level, full_width_at_level_radial, fwhm, fwhm_radial, running_mean
+
+ureg = pint.get_application_registry()
 
 
 @given(
@@ -75,3 +79,35 @@ def test_width_radial_gaussian(sigma, rmax, level, number_of_points):
 
     assert np.isclose(full_width_at_level_radial(f, r, level=level, interpolate=False), width_expected, rtol=5e-2)
     assert np.isclose(full_width_at_level_radial(f, r, level=level, interpolate=True), width_expected, rtol=5e-3)
+
+
+@given(
+    array=arrays(
+        dtype=float,
+        shape=array_shapes(min_dims=1, max_dims=1, min_side=1, max_side=1000),
+        elements=st.floats(min_value=1e-5, max_value=1e5, allow_nan=False),
+    )
+)
+def test_running_mean_same(array):
+    np.testing.assert_allclose(array, running_mean(array, 1))
+
+    array = array * ureg.m
+    mean_array = running_mean(array, 1)
+
+    assert array.units == mean_array.units
+
+    np.testing.assert_allclose(array.magnitude, mean_array.magnitude)
+
+
+@given(
+    size=st.integers(min_value=1, max_value=5000),
+    window_size=st.integers(min_value=1, max_value=60),
+)
+def test_running_mean_ones(size, window_size):
+    if window_size > size:
+        return
+    else:
+        array = np.ones(size)
+        mean_array = running_mean(array, window_size)
+
+        np.testing.assert_allclose(array, mean_array)
