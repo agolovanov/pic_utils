@@ -523,7 +523,9 @@ def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None 
         f'                 {ax2} {stats[f"emittance_tr_norm_{ax2}"]:.3g~} (tr), {stats[f"emittance_norm_{ax2}"]:.3g~} (ph)'
     )
 
-    return {'total_charge': total_charge, 'energies': energies, 'weights': weights}
+    stats.update({'total_charge': total_charge, 'energies': energies, 'weights': weights})
+
+    return stats
 
 
 def find_propagation_axis(
