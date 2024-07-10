@@ -445,7 +445,7 @@ def filter_by_pinhole(
         data['x'], data['y'], data['z'] = project_to_plane(data, plane, plane_coordinates=False)
 
     r = np.sqrt(data['x'] ** 2 + data['y'] ** 2)
-    return data[r < radius]
+    return data[r < radius].copy(deep=True)
 
 
 def format_mean_spread(mean, spread):
