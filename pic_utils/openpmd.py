@@ -79,7 +79,19 @@ class OpenPMDWrapper:
         else:
             return poynting_vector(ex, ey, bx, by)
 
-    def read_particles(self, iteration, species, parameters=['x', 'y', 'z', 'ux', 'uy', 'uz', 'w'], select=None):
+    def read_particles(
+        self,
+        iteration,
+        species,
+        *,
+        parameters=['x', 'y', 'z', 'ux', 'uy', 'uz', 'w'],
+        select=None,
+        initialize_energy=True,
+        sort_by=None,
+        max_particle_number=None,
+    ):
+        from .bunch import gamma, gamma_to_energy, limit_particle_number
+
         specie_data_arr = []
 
         if isinstance(species, str):
@@ -92,10 +104,22 @@ class OpenPMDWrapper:
             specie_data_arr.append(specie_data)
 
         if len(specie_data_arr) > 0:
-            return _pd.concat(specie_data_arr)
+            data = _pd.concat(specie_data_arr)
         else:
             dataframe_columns = parameters + ['species_id']
-            return _pd.DataFrame(columns=dataframe_columns)
+            data = _pd.DataFrame(columns=dataframe_columns)
+
+        if initialize_energy:
+            data['gamma'] = gamma(data['ux'], data['uy'], data['uz'])
+            data['energy'] = gamma_to_energy(data['gamma'])
+
+        if max_particle_number is not None:
+            data = limit_particle_number(data, max_particle_number)
+
+        if sort_by is not None:
+            data.sort_values(sort_by, inplace=True)
+
+        return data
 
     def iterations(self):
         return self.simulation.iterations
