@@ -15,8 +15,8 @@ class PintJSONEncoder(json.JSONEncoder):
 
 
 class PintJSONDecoder(json.JSONDecoder):
-    def __init__(self, unit_registry):
-        self.unit_registry = unit_registry
+    def __init__(self):
+        self.unit_registry = pint.get_application_registry()
         super().__init__(object_hook=lambda jdict: self.parse_dictionary(jdict))
 
     def parse_dictionary(self, jdict):
@@ -34,7 +34,7 @@ def save(data, json_path):
         json.dump(data, f, cls=PintJSONEncoder, indent=2, sort_keys=True, ensure_ascii=False)
 
 
-def load(json_path, unit_registry=None):
-    decoder = PintJSONDecoder(unit_registry)
+def load(json_path):
+    decoder = PintJSONDecoder()
     with open(json_path) as f:
         return json.load(f, object_hook=lambda o: decoder.parse_dictionary(o))
