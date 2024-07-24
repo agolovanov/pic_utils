@@ -1,12 +1,13 @@
 import numpy as _np
 import pandas as _pd
+import pint as _pint
 from openpmd_viewer.addons import LpaDiagnostics as _Lpa
 
 
 class OpenPMDWrapper:
-    def __init__(self, folder, pint_unit_registry) -> None:
+    def __init__(self, folder) -> None:
         self.simulation = _Lpa(folder)
-        self.ureg = pint_unit_registry
+        self.ureg = _pint.get_application_registry()
 
         self.c = self.ureg['speed_of_light']
 
