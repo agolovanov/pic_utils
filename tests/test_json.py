@@ -5,7 +5,7 @@ from pic_utils.json import PintJSONDecoder, PintJSONEncoder
 
 
 def test_encoder_decoder():
-    ureg = pint.UnitRegistry()
+    ureg = pint.get_application_registry()
 
     data = {
         'string': 'test_string',
@@ -18,7 +18,7 @@ def test_encoder_decoder():
     }
 
     encoder = PintJSONEncoder()
-    decoder = PintJSONDecoder(ureg)
+    decoder = PintJSONDecoder()
 
     decoded = decoder.decode(encoder.encode(data))
 
