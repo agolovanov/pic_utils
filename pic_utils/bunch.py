@@ -584,3 +584,40 @@ def get_transverse_axes(axis: AxisStr) -> Tuple[AxisStr, AxisStr]:
         return 'x', 'y'
     else:
         raise ValueError(f'Unknown axis {axis}')
+
+
+def generate_gaussian_bunch(
+    particle_number,
+    energy: float | pint.Quantity,
+    *,
+    sigma_x: float | pint.Quantity = 0,
+    sigma_y: float | pint.Quantity = 0,
+    charge: float | pint.Quantity | None = None,
+):
+    from .units import strip_units, ensure_units
+
+    ureg = pint.get_application_registry()
+
+    sigma_x = strip_units(sigma_x, 'm')
+    sigma_y = strip_units(sigma_y, 'm')
+    energy = ensure_units(energy, 'MeV')
+
+    if charge is not None:
+        e = ureg['elementary_charge']
+        particle_weight = (charge / e / particle_number).m_as('')
+    else:
+        particle_weight = 1.0
+
+    data = pd.DataFrame(
+        {
+            'x': np.random.normal(0, sigma_x, particle_number),
+            'y': np.random.normal(0, sigma_y, particle_number),
+            'z': np.zeros(particle_number),
+            'ux': np.zeros(particle_number),
+            'uy': np.zeros(particle_number),
+            'uz': np.full(particle_number, np.sqrt(energy_to_gamma(energy) ** 2 - 1)),
+            'w': np.full(particle_number, particle_weight),
+        }
+    )
+    initialize_energy(data)
+    return data
