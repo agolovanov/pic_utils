@@ -452,12 +452,12 @@ def format_mean_spread(mean, spread):
     try:
         if mean.units != spread.units:
             raise ValueError(f'Units {mean.units} and {spread.units} are not the same')
-        return f'{mean.magnitude:.3g} ± {spread.magnitude:.3g} {mean.units}'
+        return f'{mean.magnitude:.3g} ± {spread.magnitude:.3g} {mean.units:~}'
     except:
         return f'{mean:.3g} ± {spread:.3g}'
 
 
-def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None = None):
+def calculate_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None = None):
     ureg = pint.get_application_registry()
 
     e = ureg['elementary_charge']
@@ -492,25 +492,56 @@ def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None 
     long_sigma = (long_sigma * ureg.m).to('um')
     long_duration = (long_sigma / c).to('fs')
 
-    print(f'Number of particles: {len(particles.index)}')
-    print(f'Charge {total_charge:.3g#~}, energy {total_energy:.3g#~}')
-    print(
-        f'Particle energy: min {min_energy:.3g#~}, max {max_energy:.3g#~}, mean: {mean_energy:.3g#~}, spread: {energy_spread:.3g#~}'
+    stats.update(
+        {
+            'total_charge': total_charge,
+            'total_energy': total_energy,
+            'energies': energies,
+            'weights': weights,
+            'particle_number': len(particles.index),
+            'min_energy': min_energy,
+            'max_energy': max_energy,
+            'mean_energy': mean_energy,
+            'energy_spread': energy_spread,
+            'propagation_axis': propagation_axis,
+            'transverse_axes': transverse_axes,
+            'long_mean': long_mean,
+            'long_sigma': long_sigma,
+            'long_duration': long_duration,
+            'ulong_mean': ulong_mean,
+        }
     )
 
-    ax1, ax2 = transverse_axes
+    return stats
+
+
+def print_bunch_stats(stats: dict | pd.DataFrame):
+    if 'particle_number' not in stats:
+        # the stats variable is a particle bunch
+        stats = calculate_bunch_stats(stats)
+
+    print(f'Number of particles: {stats["particle_number"]}')
+    print(f'Charge {stats["total_charge"]:.3g#~}, energy {stats["total_energy"]:.3g#~}')
+    print(
+        f'Particle energy: min {stats["min_energy"]:.3g#~}, max {stats["max_energy"]:.3g#~}, '
+        f'mean: {stats["mean_energy"]:.3g#~}, spread: {stats["energy_spread"]:.3g#~}'
+    )
+
+    ax1, ax2 = stats['transverse_axes']
 
     print(
         f'Coordinates: {ax1} = {format_mean_spread(stats[f"mean_{ax1}"], stats[f"sigma_{ax1}"])}, '
         f'{ax2} = {format_mean_spread(stats[f"mean_{ax2}"], stats[f"sigma_{ax2}"])}'
     )
     print(
-        f'             {propagation_axis} = {format_mean_spread(long_mean, long_sigma)} (duration {long_duration:.3g#~})'
+        f'             {stats["propagation_axis"]} = {format_mean_spread(stats["long_mean"], stats["long_sigma"])} '
+        f'(duration {stats["long_duration"]:.3g#~})'
     )
 
     print(
         f'Momenta: u{ax1} = {format_mean_spread(stats[f"pmean_{ax1}"], stats[f"psigma_{ax1}"])}, '
-        f'u{ax2} = {format_mean_spread(stats[f"pmean_{ax2}"], stats[f"psigma_{ax2}"])}, u{propagation_axis} = {ulong_mean:.3g}'
+        f'u{ax2} = {format_mean_spread(stats[f"pmean_{ax2}"], stats[f"psigma_{ax2}"])}, '
+        f'u{stats["propagation_axis"]} = {stats["ulong_mean"]:.3g}'
     )
     print(f'Pointing angle: {ax1} = {stats[f"prime_mean_{ax1}"]:.3g~}, {ax2} = {stats[f"prime_mean_{ax2}"]:.3g~}')
     print(f'Divergence: {ax1} = {stats[f"prime_sigma_{ax1}"]:.3g~}, {ax2} = {stats[f"prime_sigma_{ax2}"]:.3g~}')
@@ -522,8 +553,6 @@ def print_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None 
     print(
         f'                 {ax2} {stats[f"emittance_tr_norm_{ax2}"]:.3g~} (tr), {stats[f"emittance_norm_{ax2}"]:.3g~} (ph)'
     )
-
-    stats.update({'total_charge': total_charge, 'energies': energies, 'weights': weights})
 
     return stats
 
