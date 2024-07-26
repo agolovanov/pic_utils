@@ -1,16 +1,18 @@
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import fbpic.main
 import numpy as np
 import pint
 
-from . import materials
+if TYPE_CHECKING:
+    import fbpic.main
+    from . import materials
 
 
 def add_plasma_profile(
-    simulation: fbpic.main.Simulation,
+    simulation: 'fbpic.main.Simulation',
     profile,
-    composition: materials.Composition,
+    composition: 'materials.Composition',
     particles_per_cell,
     add_ions=True,
     ionizable_ions=True,
@@ -278,7 +280,7 @@ def setup_simulation_parameters(
 
 
 def setup_diagnostics(
-    simulation: fbpic.main.Simulation,
+    simulation: 'fbpic.main.Simulation',
     simulation_parameters: dict,
     *,
     lab_dir=None,
