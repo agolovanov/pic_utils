@@ -182,7 +182,9 @@ def transverse_distributions(
     return res
 
 
-def spectrum(distribution, weights, *, total_weight=None, min_value=None, max_value=None, step=None, nbins=300):
+def calculate_spectrum(
+    distribution, weights, *, total_weight=None, min_value=None, max_value=None, step=None, nbins=300
+):
     import pint
 
     if min_value is None:
@@ -211,6 +213,21 @@ def spectrum(distribution, weights, *, total_weight=None, min_value=None, max_va
         sp = sp / unit
 
     return sp * total_weight, values
+
+
+def spectrum(distribution, weights, *, total_weight=None, min_value=None, max_value=None, step=None, nbins=300):
+    from warnings import warn
+
+    warn('Use calculate_spectrum instead', DeprecationWarning)
+    return calculate_spectrum(
+        distribution,
+        weights,
+        total_weight=total_weight,
+        min_value=min_value,
+        max_value=max_value,
+        step=step,
+        nbins=nbins,
+    )
 
 
 def project_to_plane(data, plane: pic_utils.geometry.Plane, plane_coordinates=True):
@@ -623,7 +640,7 @@ def generate_gaussian_bunch(
     sigma_y: float | pint.Quantity = 0,
     charge: float | pint.Quantity | None = None,
 ):
-    from .units import strip_units, ensure_units
+    from .units import ensure_units, strip_units
 
     ureg = pint.get_application_registry()
 
