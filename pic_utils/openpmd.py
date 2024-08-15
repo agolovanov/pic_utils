@@ -111,7 +111,7 @@ class OpenPMDWrapper:
 
         if initialize_energy:
             data['gamma'] = gamma(data['ux'], data['uy'], data['uz'])
-            data['energy'] = gamma_to_energy(data['gamma'])
+            data['energy'] = gamma_to_energy(data['gamma']).m_as('MeV')
 
         if max_particle_number is not None:
             data = limit_particle_number(data, max_particle_number)
