@@ -72,3 +72,39 @@ class PlasmaUnits:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def convert_to_unitless(self, value: pint.Quantity):
+        """Convert the given value to a unitless value in the corresponding plasma units.
+
+        Parameters
+        ----------
+        value : pint.Quantity
+            the value to be converted
+
+        Returns
+        -------
+        Any
+            array
+
+        ------
+        ValueError
+            in the case when the conversion is unsuccesful
+        """
+        if value.check('[length]'):
+            return (self.wavenumber * value).m_as('')
+        elif value.check('[time]'):
+            return (self.frequency * value).m_as('')
+        elif value.check('[charge]'):
+            return (value / self.e).m_as('')
+        elif value.check('1 / [volume]'):
+            return (value / self.density).m_as('')
+        elif value.check('[charge] / [volume]'):  # charge density
+            return (value / self.density / self.e).m_as('')
+        elif value.check('[velocity] * [charge] / [volume]'):  # charge current density
+            return (value / self.density / self.e / self.c).m_as('')
+        elif value.check('[electric_field]'):
+            return (value / self.E).m_as('')
+        elif value.check('[magnetic_field]'):
+            return (value / self.B).m_as('')
+        else:
+            raise ValueError(f'The value has a unit [{value.units}] which cannot be converted')

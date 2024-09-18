@@ -3,7 +3,7 @@ import pint
 from hypothesis import given
 from hypothesis import strategies as st
 
-ureg = pint.UnitRegistry()
+ureg = pint.get_application_registry()
 
 
 def test_plasma_units_pint():
@@ -47,3 +47,19 @@ def test_plasma_units_import():
     Test that module-level import also works
     """
     from pic_utils import PlasmaUnits  # noqa: F401
+
+
+def test_plasma_units_unitless():
+    from pic_utils.plasma import PlasmaUnits
+
+    e = ureg['elementary_charge']
+
+    pu = PlasmaUnits(1e18 * ureg.cm**-3)
+
+    np.testing.assert_allclose(pu.convert_to_unitless(pu.wavelength), 2 * np.pi)
+    np.testing.assert_allclose(pu.convert_to_unitless(1 / pu.frequency), 1.0)
+    np.testing.assert_allclose(pu.convert_to_unitless(e), 1.0)
+    np.testing.assert_allclose(pu.convert_to_unitless(pu.density), 1.0)
+    np.testing.assert_allclose(pu.convert_to_unitless(e * pu.density), 1.0)
+    np.testing.assert_allclose(pu.convert_to_unitless(pu.E), 1.0)
+    np.testing.assert_allclose(pu.convert_to_unitless(pu.B), 1.0)
