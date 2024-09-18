@@ -3,16 +3,31 @@ import pandas as _pd
 import pint as _pint
 from openpmd_viewer.addons import LpaDiagnostics as _Lpa
 
+import typing
+
+if typing.TYPE_CHECKING:
+    from .plasma import PlasmaUnits
+
 
 class OpenPMDWrapper:
-    def __init__(self, folder) -> None:
+    def __init__(self, folder, plasma_units: 'PlasmaUnits | None' = None) -> None:
         self.simulation = _Lpa(folder)
         self.ureg = _pint.get_application_registry()
+        self.plasma_units = plasma_units
 
         self.c = self.ureg['speed_of_light']
 
     def read_field(
-        self, iteration, field, component=None, *, geometry='xz', grid=False, mode='all', only_positive_r=False
+        self,
+        iteration,
+        field,
+        component=None,
+        *,
+        geometry='xz',
+        grid=False,
+        mode='all',
+        only_positive_r=False,
+        plasma_units: 'PlasmaUnits | str | None' = 'auto',
     ):
         if geometry == 'xz':
             theta = 0.0
@@ -25,14 +40,22 @@ class OpenPMDWrapper:
         else:
             raise ValueError(f'Geometry {geometry} is not available, only xz, yz, 3d')
 
+        if plasma_units == 'auto':
+            plasma_units = self.plasma_units
+
         f, f_info = self.simulation.get_field(field, component, iteration=iteration, theta=theta, m=mode)
 
         if field == 'E':
             f = f * self.ureg['V/m']
         elif field == 'B':
             f = f * self.ureg['tesla']
+        elif field == 'J':
+            f = f * self.ureg['C/m^2/s']
         elif field.startswith('rho'):
             f = f * self.ureg['C/m^3']
+
+        if plasma_units is not None:
+            f = plasma_units.convert_to_unitless(f)
 
         if geometry == '3d':
             if grid:
@@ -40,6 +63,10 @@ class OpenPMDWrapper:
                 zz = (zz * self.ureg.m).to('um')
                 xx = (xx * self.ureg.m).to('um')
                 yy = (yy * self.ureg.m).to('um')
+                if plasma_units is not None:
+                    xx = plasma_units.convert_to_unitless(xx)
+                    yy = plasma_units.convert_to_unitless(yy)
+                    zz = plasma_units.convert_to_unitless(zz)
                 return zz, xx, yy, f
             else:
                 return f
@@ -53,6 +80,9 @@ class OpenPMDWrapper:
                 zz, xx = _np.meshgrid(f_info.z, r)
                 zz = (zz * self.ureg.m).to('um')
                 xx = (xx * self.ureg.m).to('um')
+                if plasma_units is not None:
+                    xx = plasma_units.convert_to_unitless(xx)
+                    zz = plasma_units.convert_to_unitless(zz)
                 return zz, xx, f
             else:
                 return f
