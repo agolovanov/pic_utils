@@ -126,7 +126,23 @@ def setup_mpi(order: int = 32, *, print_details: bool = True) -> dict:
     return {'rank': rank, 'nprocs': nprocs, 'order': order}
 
 
-def setup_output_folders(base_folder: str | Path, remove_subfolders: bool = False) -> dict:
+def setup_output_folders(base_folder: str | Path, remove_subfolders: bool = False, use_boost: bool = True) -> dict:
+    """Create output folders for FBPIC simulation results
+
+    Parameters
+    ----------
+    base_folder : str | Path
+        the main simulation results folder
+    remove_subfolders : bool, optional
+        whether to delete the existing subfolders with its content, by default False
+    use_boost : bool, optional
+        whether (will return the boost subfolder), by default True
+
+    Returns
+    -------
+    dict
+        dictionary with keys 'base', 'lab', and (optionally) 'boost' with the subfolder paths
+    """
     import os
     import shutil
 
@@ -139,19 +155,24 @@ def setup_output_folders(base_folder: str | Path, remove_subfolders: bool = Fals
         os.makedirs(base_folder, exist_ok=True)
 
     folder_lab = base_folder / 'lab_diags'
-    folder_boost = base_folder / 'boost_diags'
 
     print(f'Folder: {base_folder}')
     print(f'Lab subfolder: {folder_lab}')
-    print(f'Boost subfolder: {folder_boost}')
+    folders = {'base': base_folder, 'lab': folder_lab}
+    subfolders = [folder_lab]
+    if use_boost:
+        folder_boost = base_folder / 'boost_diags'
+        folders['boost'] = folder_boost
+        print(f'Boost subfolder: {folder_boost}')
+        subfolders.append()
 
     if remove_subfolders and rank == 0:
-        for folder in (folder_lab, folder_boost):
+        for folder in subfolders:
             if folder.exists():
                 print(f'Folder {folder} exists, removing...')
                 shutil.rmtree(folder)
 
-    return {'base': base_folder, 'lab': folder_lab, 'boost': folder_boost}
+    return folders
 
 
 def setup_simulation_parameters(
