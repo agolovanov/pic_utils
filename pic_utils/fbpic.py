@@ -164,7 +164,7 @@ def setup_output_folders(base_folder: str | Path, remove_subfolders: bool = Fals
         folder_boost = base_folder / 'boost_diags'
         folders['boost'] = folder_boost
         print(f'Boost subfolder: {folder_boost}')
-        subfolders.append()
+        subfolders.append(folder_boost)
 
     if remove_subfolders and rank == 0:
         for folder in subfolders:
