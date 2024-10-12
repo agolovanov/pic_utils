@@ -24,21 +24,24 @@ def strip_units(value, target_unit: pint.Unit | str):
         return value
 
 
-def ensure_units(value, units: pint.Unit | str):
+def ensure_units(value, units: pint.Unit | str | None):
     """Takes the value that may or may not have units and returns the value with specified units.
 
     Parameters
     ----------
     value : pint.Quantity | float
         the value to be returned
-    units : pint.Unit | str
-        the desired unit
+    units : pint.Unit | str | None
+        the desired unit. If None is given, the value will be returned without checks.
 
     Returns
     -------
     pint.Quantity
         value in the desired units
     """
+
+    if units is None:
+        return value
 
     if isinstance(value, pint.Quantity):
         return value.to(units)
@@ -47,3 +50,23 @@ def ensure_units(value, units: pint.Unit | str):
             ureg = pint.get_application_registry()
             units = ureg[units]
         return value * units
+
+
+def split_magnitude_units(value) -> tuple:
+    """Returns magnitude and units of the value.
+    If the value does not have units, retuns `None` in the place of units.
+
+    Parameters
+    ----------
+    value :
+        the value to be returned
+
+    Returns
+    -------
+    tuple
+        (magnitude, units) of the value. If the value does not have units, `units` will be `None`.
+    """
+    if isinstance(value, pint.Quantity):
+        return value.magnitude, value.units
+    else:
+        return value, None
