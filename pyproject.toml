@@ -3,6 +3,7 @@ name = "pic_utils"
 version = "0.26.0"
 description = "Various utilities for running PIC-based codes and analyzing their results"
 authors = [{ name = "Anton Golovanov" }]
+dynamic = ["dependencies"]
 
 [build-system]
 requires = ["setuptools"]
@@ -10,6 +11,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["pic_utils*"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

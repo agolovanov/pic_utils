@@ -1,0 +1,9 @@
+mendeleev
+mpi4py
+numba
+numpy
+openpmd-viewer
+pandas
+pint
+scipy
+typing-extensions
