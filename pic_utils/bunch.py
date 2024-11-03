@@ -493,7 +493,6 @@ def calculate_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | N
 
     if propagation_axis is None:
         propagation_axis, mean_u = find_propagation_axis(particles, total_weight=total_weight, return_mean_momenta=True)
-        print(f'Propagation axis of the bunch: {propagation_axis}')
         ulong_mean = mean_u[f'u{propagation_axis}']
     else:
         ulong_mean = mean(particles[f'u{propagation_axis}'], weights, total_weight=total_weight)
@@ -536,6 +535,8 @@ def print_bunch_stats(stats: dict | pd.DataFrame):
     if 'particle_number' not in stats:
         # the stats variable is a particle bunch
         stats = calculate_bunch_stats(stats)
+
+    print(f'Propagation axis of the bunch: {stats["propagation_axis"]}')
 
     print(f'Number of particles: {stats["particle_number"]}')
     print(f'Charge {stats["total_charge"]:.3g#~}, energy {stats["total_energy"]:.3g#~}')
