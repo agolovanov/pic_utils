@@ -3,7 +3,13 @@ import pint
 from hypothesis import given
 from hypothesis import strategies as st
 
-from pic_utils.bunch import calculate_bunch_stats, energy_to_gamma, gamma_to_energy, generate_gaussian_bunch
+from pic_utils.bunch import (
+    calculate_bunch_stats,
+    energy_to_gamma,
+    gamma_to_energy,
+    generate_gaussian_bunch,
+    calculate_spectrum,
+)
 
 
 @given(
@@ -36,3 +42,15 @@ def test_generate_gaussian_bunch(particle_number, energy, charge, sigma_x, sigma
     np.testing.assert_allclose(sigma_y, stats['sigma_y'].m_as('m'), rtol=0.05)
     np.testing.assert_allclose(energy.m_as('MeV'), stats['mean_energy'].m_as('MeV'))
     np.testing.assert_allclose(charge.m_as('C'), stats['total_charge'].m_as('C'))
+
+
+def test_calculate_spectrum_grid():
+    x = np.random.normal(0.0, 3, 3000)
+    w = np.ones(x.size)
+
+    values, grid = calculate_spectrum(x, w, min_value=-3.0, max_value=3.0)
+    values_new, grid_new = calculate_spectrum(x, w, grid=grid)
+
+    assert len(grid) == len(grid_new)
+    np.testing.assert_allclose(grid, grid_new)
+    np.testing.assert_allclose(values, values_new)

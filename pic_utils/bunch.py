@@ -183,16 +183,23 @@ def transverse_distributions(
 
 
 def calculate_spectrum(
-    distribution, weights, *, total_weight=None, min_value=None, max_value=None, step=None, nbins=300
+    distribution, weights, *, total_weight=None, min_value=None, max_value=None, step=None, nbins=300, grid=None
 ):
     import pint
 
-    if min_value is None:
-        min_value = np.min(distribution)
-    if max_value is None:
-        max_value = np.max(distribution)
-    if step is not None:
-        nbins = int((max_value - min_value) // step) + 1
+    if grid is not None:
+        nbins = len(grid)
+        step = grid[1] - grid[0]
+        min_value = np.min(grid) - 0.5 * step
+        max_value = np.max(grid) + 0.5 * step
+    else:
+        if min_value is None:
+            min_value = np.min(distribution)
+        if max_value is None:
+            max_value = np.max(distribution)
+        if step is not None:
+            nbins = int((max_value - min_value) // step) + 1
+
     if total_weight is None:
         total_weight = np.sum(weights)
 
@@ -215,7 +222,9 @@ def calculate_spectrum(
     return sp * total_weight, values
 
 
-def spectrum(distribution, weights, *, total_weight=None, min_value=None, max_value=None, step=None, nbins=300):
+def spectrum(
+    distribution, weights, *, total_weight=None, min_value=None, max_value=None, step=None, nbins=300, grid=None
+):
     from warnings import warn
 
     warn('Use calculate_spectrum instead', DeprecationWarning)
@@ -227,6 +236,7 @@ def spectrum(distribution, weights, *, total_weight=None, min_value=None, max_va
         max_value=max_value,
         step=step,
         nbins=nbins,
+        grid=grid,
     )
 
 
