@@ -516,7 +516,7 @@ def calculate_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | N
     long_mean, long_sigma = mean_spread(particles[propagation_axis], weights, total_weight=total_weight)
     long_mean = (long_mean * ureg.m).to('um')
     long_sigma = (long_sigma * ureg.m).to('um')
-    long_duration = (long_sigma / c).to('fs')
+    long_duration = (2 * long_sigma / c).to('fs')
 
     stats.update(
         {
