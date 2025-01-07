@@ -6,6 +6,7 @@ import pint
 
 if TYPE_CHECKING:
     import fbpic.main
+
     from . import materials
 
 
@@ -378,13 +379,13 @@ def setup_diagnostics(
         diag_period = simulation_parameters['diag_period']
 
         if fields_lab is not None:
-            diags.append(FieldDiagnostic(dt_period=diag_period, fldobject=fld, comm=comm, write_dir=lab_dir))
+            diags.append(FieldDiagnostic(period=diag_period, fldobject=fld, comm=comm, write_dir=lab_dir))
             print(f'Field diagnostics for: {", ".join(fields_lab)}')
 
         if density_species_lab:
             diags.append(
                 ParticleChargeDensityDiagnostic(
-                    dt_period=diag_period, sim=simulation, species=density_species_lab, write_dir=lab_dir
+                    period=diag_period, sim=simulation, species=density_species_lab, write_dir=lab_dir
                 )
             )
             print(f"Density diagnostics for: {', '.join(density_species_lab.keys())}")
@@ -392,7 +393,7 @@ def setup_diagnostics(
         if particle_species_lab:
             diags.append(
                 ParticleDiagnostic(
-                    dt_period=diag_period,
+                    period=diag_period,
                     species=particle_species_lab,
                     comm=comm,
                     write_dir=lab_dir,
