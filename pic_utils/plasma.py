@@ -1,4 +1,8 @@
 import pint
+import typing
+
+if typing.TYPE_CHECKING:
+    import numpy as np
 
 default_units = {
     'length': 'm',
@@ -9,6 +13,7 @@ default_units = {
     'charge': 'C',
     'charge_cgs': 'esu',
     'mass': 'kg',
+    'energy': 'J',
 }
 
 
@@ -40,6 +45,7 @@ class PlasmaUnits:
         self.e_cgs = self.e.to(du['charge_cgs'], 'Gau')
         self.m_e = (1 * ureg.electron_mass).to(du['mass'])
         self.c = (1 * ureg.speed_of_light).to(ureg(du['length']) / ureg(du['time']))
+        self.energy = (self.m_e * self.c**2).to(du['energy'])
 
         if base_unit.check({'[length]': -3}):  # density
             self.density = base_unit.to(du['density'])
@@ -106,5 +112,50 @@ class PlasmaUnits:
             return (value / self.E).m_as('')
         elif value.check('[magnetic_field]'):
             return (value / self.B).m_as('')
+        elif value.check('[energy]'):
+            return (value / self.energy).m_as('')
         else:
             raise ValueError(f'The value has a unit [{value.units}] which cannot be converted')
+
+    def convert_to_units(self, value: 'float | np.ndarray', unit: str | pint.Unit):
+        """Converts the given dimensionless value to a value with the added unit.
+
+        Parameters
+        ----------
+        value : np.array
+            the dimensionless value to be converted
+        unit : str | pint.Unit
+            the unit to be added.
+            Can be a key of the default_units dictionary (like 'length'), a string representation of a unit, or a pint.Unit object.
+
+        Returns
+        -------
+        pint.Quantity
+            the value with the added unit
+        """
+        if unit in self.default_units:
+            unit = self.default_units[unit]
+
+        if isinstance(unit, str):
+            unit = pint.Unit(unit)
+
+        unit_value = 1 * unit  # workaround for lack of check method in pint.Unit
+
+        if unit_value.check('[length]'):
+            return (value / self.wavenumber).to(unit)
+        elif unit_value.check('[time]'):
+            return (value / self.frequency).to(unit)
+        elif unit_value.check('[charge]'):
+            return (value * self.e).to(unit)
+        elif unit_value.check('1 / [volume]'):
+            return (value * self.density).to(unit)
+        elif unit_value.check('[charge] / [volume]'):  # charge density
+            return (value * self.density * self.e).to(unit)
+        elif unit_value.check('[velocity] * [charge] / [volume]'):  # charge current density
+            return (value * self.density * self.e * self.c).to(unit)
+        elif unit_value.check('[electric_field]'):
+            return (value * self.E).to(unit)
+        elif unit_value.check('[magnetic_field]'):
+            return (value * self.B).to(unit)
+        elif unit_value.check('[energy]'):
+            return (value * self.energy).to(unit)

@@ -49,8 +49,9 @@ def test_plasma_units_import():
     from pic_utils import PlasmaUnits  # noqa: F401
 
 
-def test_plasma_units_unitless():
+def test_plasma_units_conversion():
     from pic_utils.plasma import PlasmaUnits
+    from utils import assert_allclose_units
 
     e = ureg['elementary_charge']
 
@@ -59,7 +60,20 @@ def test_plasma_units_unitless():
     np.testing.assert_allclose(pu.convert_to_unitless(pu.wavelength), 2 * np.pi)
     np.testing.assert_allclose(pu.convert_to_unitless(1 / pu.frequency), 1.0)
     np.testing.assert_allclose(pu.convert_to_unitless(e), 1.0)
+    np.testing.assert_allclose(pu.convert_to_unitless(pu.energy), 1.0)
     np.testing.assert_allclose(pu.convert_to_unitless(pu.density), 1.0)
     np.testing.assert_allclose(pu.convert_to_unitless(e * pu.density), 1.0)
     np.testing.assert_allclose(pu.convert_to_unitless(pu.E), 1.0)
     np.testing.assert_allclose(pu.convert_to_unitless(pu.B), 1.0)
+
+    def test_value(value, unit_str):
+        assert_allclose_units(pu.convert_to_units(pu.convert_to_unitless(value), unit_str), value)
+
+    test_value(1.0 * ureg.m, 'm')
+    test_value(1.0 * ureg.s, 's')
+    test_value(1.0 * ureg.C, 'C')
+    test_value(1.0 * ureg.J, 'J')
+    test_value(1.0 * ureg.cm**-3, '1/cm^3')
+    test_value(1.0 * ureg['nC/cm^3'], 'nC/cm^3')
+    test_value(1.0 * ureg['V/m'], 'V/m')
+    test_value(1.0 * ureg['T'], 'T')
