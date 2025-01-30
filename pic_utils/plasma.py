@@ -8,10 +8,12 @@ default_units = {
     'length': 'm',
     'time': 's',
     'density': '1/m^3',
+    'phi': 'V',
     'E': 'V/m',
     'B': 'T',
     'charge': 'C',
     'charge_cgs': 'esu',
+    'charge_density': 'C/m^3',
     'mass': 'kg',
     'energy': 'J',
 }
