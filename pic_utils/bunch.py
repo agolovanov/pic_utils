@@ -221,6 +221,70 @@ def transverse_distributions(*args, **kwargs):
     return calculate_transverse_distributions(*args, **kwargs)
 
 
+def calculate_spectral_transverse_distributions(
+    data: pd.DataFrame,
+    axis: AxisStr | Iterable[AxisStr],
+    bins: int,
+    *,
+    energy_range: Tuple = None,
+    propagation_axis: AxisStr = 'z',
+) -> dict:
+    """Calculate the transverse properties of the bunch in energy slices.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        particle data with keys 'x', 'y', 'z', 'ux', 'uy', 'uz', 'w', 'energy'.
+    axis : AxisStr | Iterable[AxisStr]
+        the axis ('x', 'y', or 'z') or axes (e.g., 'xy') for which to calculate the distributions.
+    bins : int
+        the number of energy bins
+    energy_range : Tuple, optional
+        the energy range in which to calculate the properties, by default None (uses the full energy range of the beam)
+    propagation_axis : AxisStr, optional
+        the propagation axis, by default 'z'
+
+    Returns
+    -------
+    dict
+        the dictionary with the calculated properties as arrays over the energy range.
+    """
+    ureg = pint.get_application_registry()
+
+    if energy_range is None:
+        min_energy = np.min(data['energy'])
+        max_energy = np.max(data['energy'])
+    else:
+        min_energy, max_energy = energy_range
+
+    denergy = (max_energy - min_energy) / bins
+
+    energy_array = np.linspace(min_energy + 0.5 * denergy, max_energy - 0.5 * denergy, bins) * ureg.MeV
+
+    stats = []
+
+    for i in range(bins):
+        energy_min_i = min_energy + i * denergy
+        energy_max_i = energy_min_i + denergy
+        mask = np.logical_and(data['energy'] >= energy_min_i, data['energy'] <= energy_max_i)
+
+        particles_slice = data[mask]
+
+        stats.append(transverse_distributions(particles_slice, axis, propagation_axis=propagation_axis))
+
+    spectral_stats = {key: [d[key] for d in stats] for key in stats[0]}
+
+    for k in spectral_stats:
+        if isinstance(spectral_stats[k][0], pint.Quantity):
+            spectral_stats[k] = pint.Quantity.from_list(spectral_stats[k])
+        else:
+            spectral_stats[k] = np.array(spectral_stats[k])
+
+    spectral_stats['energy'] = energy_array
+
+    return spectral_stats
+
+
 def calculate_spectrum(
     distribution, weights, *, total_weight=None, min_value=None, max_value=None, step=None, nbins=300, grid=None
 ):
@@ -523,7 +587,33 @@ def format_mean_spread(mean, spread):
         return f'{mean:.3g} ± {spread:.3g}'
 
 
-def calculate_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | None = None):
+def calculate_bunch_stats(
+    particles: pd.DataFrame,
+    propagation_axis: AxisStr | None = None,
+    spectral_stats: bool = False,
+    energy_range=None,
+    spetral_bins: int = 40,
+) -> dict:
+    """Calculate the statistics of the bunch, including the total charge, energy, energy spread, mean energy, transverse stats.
+
+    Parameters
+    ----------
+    particles : pd.DataFrame
+        the particle data containing keys 'x', 'y', 'z', 'ux', 'uy', 'uz', 'w', 'energy'
+    propagation_axis : AxisStr | None, optional
+        the axis of the bunch propagation, by default None (will be deduced automatically)
+    spectral_stats : bool, optional
+        whether to calculate spectral tranverse stats, by default False
+    energy_range : tuple, optional
+        min and max energies for the spectral stats, by default None
+    spetral_bins : int, optional
+        number of points for the spectral stats, by default 40
+
+    Returns
+    -------
+    dict
+        a dictionary with the calculated statistics
+    """
     ureg = pint.get_application_registry()
 
     e = ureg['elementary_charge']
@@ -576,6 +666,12 @@ def calculate_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | N
             'ulong_mean': ulong_mean,
         }
     )
+
+    if spectral_stats:
+        spectral_stats = calculate_spectral_transverse_distributions(
+            particles, transverse_axes, spetral_bins, energy_range=energy_range
+        )
+        stats.update({f'spectral_{k}': spectral_stats[k] for k in spectral_stats})
 
     return stats
 
