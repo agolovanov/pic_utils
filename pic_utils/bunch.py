@@ -580,7 +580,21 @@ def calculate_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | N
     return stats
 
 
-def print_bunch_stats(stats: dict | pd.DataFrame):
+def print_bunch_stats(stats: dict | pd.DataFrame, return_stats: bool = False) -> dict | None:
+    """Prints a summary of the bunch parameters.
+
+    Parameters
+    ----------
+    stats : dict | pd.DataFrame
+        either a dict of parameters obtained by calculate_bunch_stats or a pandas DataFrame with the particle data
+    return_stats : bool, optional
+        whether to return the stats from the function, by default False
+
+    Returns
+    -------
+    dict | None
+        if return_stats is True, returns the stats dictionary
+    """
     if 'particle_number' not in stats:
         # the stats variable is a particle bunch
         stats = calculate_bunch_stats(stats)
@@ -621,7 +635,8 @@ def print_bunch_stats(stats: dict | pd.DataFrame):
         f'                 {ax2} {stats[f"emittance_tr_norm_{ax2}"]:.3g~} (tr), {stats[f"emittance_norm_{ax2}"]:.3g~} (ph)'
     )
 
-    return stats
+    if return_stats:
+        return stats
 
 
 def find_propagation_axis(
