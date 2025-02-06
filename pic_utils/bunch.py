@@ -1,3 +1,4 @@
+import typing
 from collections.abc import Iterable
 
 import numpy as np
@@ -10,6 +11,11 @@ import pic_utils.geometry
 from .functions import calculate_spread, mean, mean_spread  # noqa: F401
 
 AxisStr = Literal['x', 'y', 'z']
+
+if typing.TYPE_CHECKING:
+    from typing import Mapping
+
+    ParticleData = Mapping[str, np.ndarray]
 
 
 def gamma(ux, uy, uz):
@@ -106,14 +112,39 @@ def limit_particle_number(data: pd.DataFrame, max_particle_number: int):
     return data
 
 
-def transverse_distributions(
-    data: dict,
+def calculate_transverse_distributions(
+    data: 'ParticleData',
     axis: AxisStr | Iterable[AxisStr],
     *,
     total_weight: float | None = None,
     suffix: str | None = None,
     propagation_axis: AxisStr = 'z',
 ) -> dict:
+    """Calculates the transverse properties of the bunch, which include: coordinate `mean` and `sigma`,
+    momentum mean (`pmean`) and sigma (`psigma`), pointing angle (`prime_mean`), divergence (`prime_sigma`),
+    emittance (both phase-space 'emittance' and trace-space 'emittance_tr') and their normalized ('_norm') values.
+
+    Parameters
+    ----------
+    data : ParticleData (dict-like)
+        Data which must contain keys 'x', 'y', 'z', 'ux', 'uy', 'uz', 'w' (weights)
+    axis : AxisStr | Iterable[AxisStr]
+        the axis ('x', 'y', or 'z') or axes (e.g., 'xy') for which to calculate the distributions.
+
+        If several axes supplied, the resulting dictionary will contain values with suffixes like '_x', '_y'.
+    total_weight : float | None, optional
+        value of data['w'].sum() if precalculated, by default None
+    suffix : str | None, optional
+        a suffix to be added to the dictionary keys, by default None
+    propagation_axis : AxisStr, optional
+        the propagation axis of the beam, by default 'z'
+
+    Returns
+    -------
+    dict
+        the dictionary with the calculated properties as floats or pint quantities.
+
+    """
     ureg = pint.get_application_registry()
 
     res = {}
@@ -128,7 +159,7 @@ def transverse_distributions(
             if suffix is not None:
                 suffix = suffix + f'_{ax}'
             res.update(
-                transverse_distributions(
+                calculate_transverse_distributions(
                     data, ax, total_weight=total_weight, suffix=suffix, propagation_axis=propagation_axis
                 )
             )
@@ -180,6 +211,14 @@ def transverse_distributions(
     res[f'emittance_tr_norm{suffix}'] = (emittance_tr_norm * ureg.m).to('mm mrad')
 
     return res
+
+
+def transverse_distributions(*args, **kwargs):
+    """Deprecated function, use calculate_transverse_distributions instead."""
+    import warnings
+
+    warnings.warn('Use calculate_transverse_distributions instead', DeprecationWarning)
+    return calculate_transverse_distributions(*args, **kwargs)
 
 
 def calculate_spectrum(
@@ -509,7 +548,7 @@ def calculate_bunch_stats(particles: pd.DataFrame, propagation_axis: AxisStr | N
 
     transverse_axes = get_transverse_axes(propagation_axis)
 
-    stats = transverse_distributions(
+    stats = calculate_transverse_distributions(
         particles, transverse_axes, total_weight=total_weight, propagation_axis=propagation_axis
     )
 
