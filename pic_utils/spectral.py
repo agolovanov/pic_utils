@@ -41,6 +41,15 @@ def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inv
     """
     from .units import split_magnitude_units, ensure_units
 
+    if f.ndim != 1:
+        raise ValueError(f'f should be a 1D array, given dimensionality {f.ndim}')
+
+    if x is not None:
+        if x.ndim != 1:
+            raise ValueError(f'x should be a 1-D array, given dimensionality {x.ndim}')
+        if len(x) != len(f):
+            raise ValueError(f'The length of x {len(x)} does not match the length of the data {len(f)}')
+
     if padding_factor < 1.0:
         raise ValueError('padding_factor should be greater than or equal to 1.0')
 
@@ -94,6 +103,20 @@ def fft2(
         If x and y are not provided, only the 2D FFT is returned.
     """
     from .units import split_magnitude_units, ensure_units
+
+    if f.ndim != 2:
+        raise ValueError(f'f should be a 2D array, given dimensionality {f.ndim}')
+
+    if x is not None:
+        if x.ndim != 1:
+            raise ValueError(f'x should be a 1-D array, given dimensionality {x.ndim}')
+        if len(x) != f.shape[1]:
+            raise ValueError(f'The length of x {len(x)} does not match the length of the axis {f.shape[1]}')
+    if y is not None:
+        if y.ndim != 1:
+            raise ValueError(f'y should be a 1-D array, given dimensionality {y.ndim}')
+        if len(y) != f.shape[0]:
+            raise ValueError(f'The length of x {len(y)} does not match the length of the axis {f.shape[0]}')
 
     if padding_factor < 1.0:
         raise ValueError('padding_factor should be greater than or equal to 1.0')
