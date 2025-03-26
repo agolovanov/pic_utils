@@ -4,7 +4,14 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays, array_shapes
 
-from pic_utils.functions import full_width_at_level, full_width_at_level_radial, fwhm, fwhm_radial, running_mean
+from pic_utils.functions import (
+    full_width_at_level,
+    full_width_at_level_radial,
+    fwhm,
+    fwhm_radial,
+    running_mean,
+    interpolate_2d,
+)
 
 ureg = pint.get_application_registry()
 
@@ -111,3 +118,14 @@ def test_running_mean_ones(size, window_size):
         mean_array = running_mean(array, window_size)
 
         np.testing.assert_allclose(array, mean_array)
+
+
+def test_interpolate_2d():
+    x = np.linspace(-5, 5, 100)
+    y = np.linspace(0, 10, 50)
+    xx, yy = np.meshgrid(x, y)
+    f = np.cos(xx) * np.exp(-yy)
+
+    f_interp = interpolate_2d(f.T, x, y)
+
+    np.testing.assert_allclose(f, f_interp(xx, yy))

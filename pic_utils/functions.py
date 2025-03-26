@@ -303,3 +303,39 @@ def running_mean(values, window_size: int, *, axis: int = 0):
         res = res * values.units
 
     return res
+
+
+def interpolate_2d(f, x, y, **kwargs):
+    """Creates an interpolation function for a 2D function f(x, y) using scipy.interpolate.RegularGridInterpolator
+
+    Parameters
+    ----------
+    x : np.ndarray
+        the 1D array of x coordinates
+    y : np.ndarray
+        the 1D array of y coordinates
+    f : np.ndarray
+        the 2D function values. The first axis should correspond to x.
+    **kwargs
+        additional arguments for RegularGridInterpolator
+
+    Returns
+    -------
+    callable
+        interpolated function of two variables f(x, y)
+    """
+    from scipy.interpolate import RegularGridInterpolator
+
+    if np.ndim(x) != 1 or np.ndim(y) != 1:
+        raise ValueError('The coordinates x and y should be 1D arrays')
+    if np.ndim(f) != 2:
+        raise ValueError('The values of the function f should be a 2D array')
+    if f.shape != (len(x), len(y)):
+        raise ValueError('The shape of the function values should be (len(x), len(y))')
+
+    interpolator = RegularGridInterpolator((x, y), f, **kwargs)
+
+    def interpolated_func(x, y):
+        return interpolator((x, y))
+
+    return interpolated_func
