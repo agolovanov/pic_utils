@@ -81,13 +81,15 @@ class PlasmaUnits:
     def __repr__(self) -> str:
         return self.__str__()
 
-    def convert_to_unitless(self, value: pint.Quantity):
+    def convert_to_unitless(self, value: pint.Quantity, allow_unitless: bool = False) -> 'float | np.ndarray':
         """Convert the given value to a unitless value in the corresponding plasma units.
 
         Parameters
         ----------
         value : pint.Quantity
             the value to be converted
+        allow_unitless : bool
+            if True, the function will return the value without units if the value is already dimensionless instead of raising an error
 
         Returns
         -------
@@ -98,6 +100,9 @@ class PlasmaUnits:
         ValueError
             in the case when the conversion is unsuccesful
         """
+        if allow_unitless and not hasattr(value, 'units'):
+            return value
+
         if value.check('[length]'):
             return (self.wavenumber * value).m_as('')
         elif value.check('[time]'):
