@@ -1,8 +1,5 @@
 import numpy as np
-import typing
-
-if typing.TYPE_CHECKING:
-    import pint
+import pint
 
 
 def assert_allclose_units(a: 'pint.Quantity', b: 'pint.Quantity', **kwargs):
@@ -22,3 +19,23 @@ def assert_allclose_units(a: 'pint.Quantity', b: 'pint.Quantity', **kwargs):
 
     assert a_unit == b_unit
     np.testing.assert_allclose(a_magn, b_magn, **kwargs)
+
+
+def assert_dicts_equal(a: dict, b: dict):
+    """Assert that two dictionaries are equal.
+
+    Parameters
+    ----------
+    a : dict
+        the first dictionary to compare
+    b : dict
+        the second dictionary to compare
+    """
+    assert len(a) == len(b)
+    for key in a.keys():
+        if isinstance(a[key], dict):
+            assert_dicts_equal(a[key], b[key])
+        elif isinstance(a[key], pint.Quantity):
+            assert_allclose_units(a[key], b[key])
+        else:
+            np.testing.assert_allclose(a[key], b[key])
