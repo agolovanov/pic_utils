@@ -118,7 +118,7 @@ def calculate_laser_linear_wake(
     base_integral = np.exp(1j * xi) * cumulative_trapezoid(integrand[:, ::-1], dx=dz, initial=0)[:, ::-1]
 
     base_integral_dtrans = np.gradient(base_integral, dr, axis=0)
-    base_integral_dtrans_2 = np.gradient(base_integral_dtrans, dr, axis=0)
+    base_integral_dtrans_2 = np.gradient(r[:, None] * base_integral_dtrans, dr, axis=0) / r[:, None]
 
     result = {}
 
