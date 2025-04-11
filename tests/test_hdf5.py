@@ -15,6 +15,10 @@ def test_save_load_dict(tmp_path):
         'c': {'c_sub': np.linspace(5, -3, 10)},
         'd': 10,
         'e': 9.7 * ureg.keV,
+        'f': None,
+        'g': np.ndarray([]),
+        'h': 'TestString',
+        'i': 'ТестоваяСтрока',
     }
 
     output = tmp_path / 'test.h5'

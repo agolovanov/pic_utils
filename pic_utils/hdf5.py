@@ -1,5 +1,6 @@
 import h5py
 import pint
+import numpy as np
 
 import typing
 
@@ -31,7 +32,11 @@ def save_array(group: h5py.Group, name: str, array, overwrite=False, compressed=
     compression = 'gzip' if compressed else None
 
     if name not in group:
-        if isinstance(array, pint.Quantity):
+        print(f'{name} = {array}')
+        if array is None:
+            save_array(group, name, np.array([]), overwrite=overwrite, compressed=compressed)
+            group[name].attrs['array_type'] = 'None'
+        elif isinstance(array, pint.Quantity):
             array, units = split_magnitude_units(array)
             group.create_dataset(name, data=array, compression=compression)
             group[name].attrs['units'] = str(units)
@@ -93,11 +98,17 @@ def load_array(group: h5py.Group, name: str):
     np.ndarray or pint.Quantity
         the loaded array, with units if available
     """
+    if 'array_type' in group[name].attrs:
+        if group[name].attrs['array_type'] == 'None':
+            return None
     if 'units' in group[name].attrs:
         ureg = pint.get_application_registry()
         return group[name][()] * ureg[group[name].attrs['units']]
     else:
-        return group[name][()]
+        value = group[name][()]
+        if isinstance(value, bytes):
+            value = value.decode('utf-8')
+        return value
 
 
 def load_dict(group: 'h5py.Group | str | Path') -> dict:

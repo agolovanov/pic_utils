@@ -35,6 +35,10 @@ def assert_dicts_equal(a: dict, b: dict):
     for key in a.keys():
         if isinstance(a[key], dict):
             assert_dicts_equal(a[key], b[key])
+        elif isinstance(a[key], str):
+            assert a[key] == b[key], f'Key {key} is not equal: {a[key]} != {b[key]}'
+        elif a[key] is None:
+            assert a[key] == b[key], f'Key {key} is not equal: {a[key]} != {b[key]}'
         elif isinstance(a[key], pint.Quantity):
             assert_allclose_units(a[key], b[key])
         else:
