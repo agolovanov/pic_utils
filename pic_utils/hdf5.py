@@ -32,7 +32,6 @@ def save_array(group: h5py.Group, name: str, array, overwrite=False, compressed=
     compression = 'gzip' if compressed else None
 
     if name not in group:
-        print(f'{name} = {array}')
         if array is None:
             save_array(group, name, np.array([]), overwrite=overwrite, compressed=compressed)
             group[name].attrs['array_type'] = 'None'
