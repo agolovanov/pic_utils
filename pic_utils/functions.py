@@ -31,8 +31,17 @@ def full_width_at_level(f, x, level, bounds=False, interpolate=True):
     f_norm = f - level * np.max(f)
     index_max_f = np.argmax(f_norm)
 
-    index_high = np.argmax(f_norm[index_max_f:] < 0)
-    index_low = np.argmax(f_norm[index_max_f::-1] < 0)
+    mask_high = f_norm[index_max_f:] < 0
+    if np.max(mask_high) == 0:
+        index_high = len(mask_high) - 1
+    else:
+        index_high = np.argmax(mask_high)
+
+    mask_low = f_norm[index_max_f::-1] < 0
+    if np.max(mask_low) == 0:
+        index_low = len(mask_low) - 1
+    else:
+        index_low = np.argmax(mask_low)
 
     if interpolate:
         x1 = x[index_max_f:][index_high - 1]
