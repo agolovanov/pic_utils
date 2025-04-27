@@ -41,6 +41,8 @@ def full_width_at_level(f, x, level, bounds=False, interpolate=True):
         f2 = f_norm[index_max_f:][index_high]
 
         xhigh = (f2 * x1 - f1 * x2) / (f2 - f1)
+        if xhigh > np.max(x):
+            xhigh = np.max(x)
 
         x1 = x[index_max_f::-1][index_low - 1]
         x2 = x[index_max_f::-1][index_low]
@@ -48,6 +50,8 @@ def full_width_at_level(f, x, level, bounds=False, interpolate=True):
         f2 = f_norm[index_max_f::-1][index_low]
 
         xlow = (f2 * x1 - f1 * x2) / (f2 - f1)
+        if xlow < np.min(x):
+            xlow = np.min(x)
     else:
         xhigh = x[index_max_f:][index_high]
         xlow = x[index_max_f::-1][index_low]
