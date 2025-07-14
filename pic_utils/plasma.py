@@ -74,6 +74,7 @@ class PlasmaUnits:
 
         self.E = (self.m_e * self.c**2 * self.wavenumber / self.e_cgs).to(du['E'], 'Gau')
         self.B = self.E.to(du['B'], 'Gau')
+        self.potential = (self.m_e * self.c**2 / self.e_cgs).to(du['phi'], 'Gau')
 
     def __str__(self) -> str:
         return f'PlasmaUnits({self.density:g~})'
@@ -121,6 +122,8 @@ class PlasmaUnits:
             return (value / self.B).m_as('')
         elif value.check('[energy]'):
             return (value / self.energy).m_as('')
+        elif value.check('[electric_potential]'):
+            return (value / self.potential).m_as('')
         else:
             raise ValueError(f'The value has a unit [{value.units}] which cannot be converted')
 
@@ -166,3 +169,7 @@ class PlasmaUnits:
             return (value * self.B).to(unit)
         elif unit_value.check('[energy]'):
             return (value * self.energy).to(unit)
+        elif unit_value.check('[electric_potential]'):
+            return (value * self.potential).to(unit)
+        else:
+            raise ValueError(f'Cannot convert to unit [{unit}]')

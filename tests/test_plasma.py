@@ -65,6 +65,7 @@ def test_plasma_units_conversion():
     np.testing.assert_allclose(pu.convert_to_unitless(e * pu.density), 1.0)
     np.testing.assert_allclose(pu.convert_to_unitless(pu.E), 1.0)
     np.testing.assert_allclose(pu.convert_to_unitless(pu.B), 1.0)
+    np.testing.assert_allclose(pu.convert_to_unitless(pu.potential), 1.0)
 
     def test_value(value, unit_str):
         assert_allclose_units(pu.convert_to_units(pu.convert_to_unitless(value), unit_str), value)
@@ -77,3 +78,4 @@ def test_plasma_units_conversion():
     test_value(1.0 * ureg['nC/cm^3'], 'nC/cm^3')
     test_value(1.0 * ureg['V/m'], 'V/m')
     test_value(1.0 * ureg['T'], 'T')
+    test_value(1.0 * ureg['V'], 'V')
