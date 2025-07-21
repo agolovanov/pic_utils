@@ -17,6 +17,8 @@ if typing.TYPE_CHECKING:
 
     ParticleData = Mapping[str, np.ndarray]
 
+ureg = pint.get_application_registry()
+
 
 def gamma(ux, uy, uz):
     """Calculates the Lorentz factor corresponding to the momentum"""
@@ -38,7 +40,6 @@ def energy_to_gamma(energy: pint.Quantity, *, mass: pint.Quantity = None):
     float
         Lorentz factor
     """
-    ureg = energy._REGISTRY
     c = ureg['speed_of_light']
     if mass is None:
         mass = ureg['electron_mass']
@@ -62,7 +63,6 @@ def gamma_to_energy(gamma, *, mass: pint.Quantity = None, units='MeV') -> pint.Q
     pint.Quantity
         energy in specified units
     """
-    ureg = pint.get_application_registry()
 
     c = ureg['speed_of_light']
     if mass is None:
@@ -145,8 +145,6 @@ def calculate_transverse_distributions(
         the dictionary with the calculated properties as floats or pint quantities.
 
     """
-    ureg = pint.get_application_registry()
-
     res = {}
 
     if axis == 'x' or axis == 'y' or axis == 'z':
@@ -249,8 +247,6 @@ def calculate_spectral_transverse_distributions(
     dict
         the dictionary with the calculated properties as arrays over the energy range.
     """
-    ureg = pint.get_application_registry()
-
     if energy_range is None:
         min_energy = np.min(data['energy'])
         max_energy = np.max(data['energy'])
@@ -402,8 +398,6 @@ def propagate_through_magnet_relativistic(data, B0, length, *, axis='x'):
     ValueError
         if the axis is invalid
     """
-    ureg = B0._REGISTRY
-
     e = ureg['elementary_charge'].to('esu', 'Gau')
     m = ureg['electron_mass']
     c = ureg['speed_of_light']
@@ -459,8 +453,6 @@ def propagate_through_magnet(data, B0, length, transverse_max=None, *, axis='x')
     ValueError
         if the axis is invalid
     """
-    ureg = B0._REGISTRY
-
     e = ureg['elementary_charge'].to('esu', 'Gau')
     m = ureg['electron_mass']
     c = ureg['speed_of_light']
@@ -614,8 +606,6 @@ def calculate_bunch_stats(
     dict
         a dictionary with the calculated statistics
     """
-    ureg = pint.get_application_registry()
-
     e = ureg['elementary_charge']
     c = ureg['speed_of_light']
 
