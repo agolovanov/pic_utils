@@ -784,20 +784,74 @@ def get_transverse_axes(axis: AxisStr) -> Tuple[AxisStr, AxisStr]:
 
 
 def generate_gaussian_bunch(
-    particle_number,
+    particle_number: int,
     energy: float | pint.Quantity,
     *,
+    energy_spread: float | pint.Quantity = 0,
+    min_energy: float | pint.Quantity = 0,
     sigma_x: float | pint.Quantity = 0,
     sigma_y: float | pint.Quantity = 0,
-    charge: float | pint.Quantity | None = None,
+    divergence_x: float | pint.Quantity = 0,
+    divergence_y: float | pint.Quantity = 0,
+    charge: pint.Quantity | None = None,
 ):
-    from .units import ensure_units, strip_units
+    """Generate a particle bunch with Gaussian distributions in transverse coordinates, momenta, and energy.
 
-    ureg = pint.get_application_registry()
+    Parameters
+    ----------
+    particle_number : int
+        Number of particles in the bunch
+    energy : float | pint.Quantity
+        Mean energy of the particles (if float, assumed to be in MeV)
+    energy_spread : float | pint.Quantity, optional
+        Standard deviation of the energy distribution, by default 0
+        If float, assumed to be in MeV
+    min_energy : float | pint.Quantity, optional
+        Minimum energy of the particles, by default 0
+        If float, assumed to be in MeV
+    sigma_x : float | pint.Quantity, optional
+        Transverse size in the x direction, by default 0
+        If float, assumed to be in meters
+    sigma_y : float | pint.Quantity, optional
+        Transverse size in the y direction, by default 0
+        If float, assumed to be in meters
+    divergence_x : float | pint.Quantity, optional
+        Angular divergence in the x direction, by default 0
+        If float, assumed to be in radians
+    divergence_y : float | pint.Quantity, optional
+        Angular divergence in the y direction, by default 0
+        If float, assumed to be in radians
+    charge : pint.Quantity | None, optional
+        Total charge of the bunch, by default None (every particle is an electron)
+        If float, assumed to be in elementary charge units (Coulombs)
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the particle data with columns:
+        'x', 'y', 'z', 'ux', 'uy', 'uz', 'w', 'energy'
+        where 'w' is the weight of each particle.
+    """
+    from .units import strip_units
 
     sigma_x = strip_units(sigma_x, 'm')
     sigma_y = strip_units(sigma_y, 'm')
-    energy = ensure_units(energy, 'MeV')
+    energy = strip_units(energy, 'MeV')
+    divergence_x = strip_units(divergence_x, 'rad')
+    divergence_y = strip_units(divergence_y, 'rad')
+    energy_spread = strip_units(energy_spread, 'MeV')
+    min_energy = strip_units(min_energy, 'MeV')
+    energy_array = np.random.normal(energy, energy_spread, particle_number)
+    energy_array[energy_array < min_energy] = min_energy
+    energy_array = energy_array * ureg.MeV
+
+    u = np.sqrt(energy_to_gamma(energy_array) ** 2 - 1)
+
+    theta_x = np.random.normal(0, divergence_x, particle_number)
+    theta_y = np.random.normal(0, divergence_y, particle_number)
+    ux = u * np.sin(theta_x)
+    uy = u * np.sin(theta_y)
+    uz = np.sqrt(u**2 - ux**2 - uy**2)
 
     if charge is not None:
         e = ureg['elementary_charge']
@@ -810,9 +864,9 @@ def generate_gaussian_bunch(
             'x': np.random.normal(0, sigma_x, particle_number),
             'y': np.random.normal(0, sigma_y, particle_number),
             'z': np.zeros(particle_number),
-            'ux': np.zeros(particle_number),
-            'uy': np.zeros(particle_number),
-            'uz': np.full(particle_number, np.sqrt(energy_to_gamma(energy) ** 2 - 1)),
+            'ux': ux,
+            'uy': uy,
+            'uz': uz,
             'w': np.full(particle_number, particle_weight),
         }
     )
