@@ -33,6 +33,10 @@ def test_fwhm_gaussian(x0, sigma, xlow, xhigh, number_of_points):
 
     assert np.isclose(fwhm(f, x), fwhm_expected, rtol=1e-4)
 
+    x1, x2 = fwhm(f, x, bounds=True)
+    assert np.isclose(x1, x0 - fwhm_expected / 2, rtol=1e-4)
+    assert np.isclose(x2, x0 + fwhm_expected / 2, rtol=1e-4)
+
 
 @given(
     x0=st.floats(allow_nan=False, min_value=-1e5, max_value=1e5),

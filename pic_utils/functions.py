@@ -71,7 +71,7 @@ def full_width_at_level(f, x, level, bounds=False, interpolate=True):
         return xhigh - xlow
 
 
-def fwhm(f, x):
+def fwhm(f, x, bounds=False):
     """Returns full width at half maximum (FWHM) of function f(x) given by two arrays
 
     Parameters
@@ -80,13 +80,17 @@ def fwhm(f, x):
         function values
     x : np.array or similar
         function coorindates
+    bounds : bool (default False)
+        if True, returns the tuple of two values (the upper and the lower bounds)
+
+        if False, returns just the width which is the difference between these two values
 
     Returns
     -------
-    float
+    float or tuple of (float, float)
         FHWM of f(x)
     """
-    return full_width_at_level(f, x, level=0.5)
+    return full_width_at_level(f, x, level=0.5, bounds=bounds)
 
 
 def full_width_at_level_radial(f, r, level, interpolate=True):
@@ -205,7 +209,7 @@ def _density_1d_compiled(values, weights, grid_start, grid_end, grid_size):
     return grid_values
 
 
-@numba.njit
+@numba.njit(nogil=True)
 def _density_2d_compiled(
     grid_values,
     values_x,
