@@ -219,6 +219,69 @@ def transverse_distributions(*args, **kwargs):
     return calculate_transverse_distributions(*args, **kwargs)
 
 
+def calculate_subset_transverse_distributions(
+    data: pd.DataFrame,
+    axis: AxisStr | Iterable[AxisStr],
+    bins: int,
+    *,
+    value: str,
+    range: Tuple = None,
+    propagation_axis: AxisStr = 'z',
+) -> dict:
+    """Calculates the transverse properties of the bunch in slices of a given parameter.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        particle data with keys 'x', 'y', 'z', 'ux', 'uy', 'uz', 'w'
+    axis : AxisStr | Iterable[AxisStr]
+        the axis ('x', 'y', or 'z') or axes (e.g., 'xy') for which to calculate the distributions.
+    bins : int
+        the number of slices
+    value : str
+        the parameter by which to slice the data, e.g., 'energy' or 'z'
+    range : Tuple, optional
+        the min and max values of the parameter to consider, by default None (uses the full range of the data)
+    propagation_axis : AxisStr, optional
+        the propagation axis, by default 'z'
+
+    Returns
+    -------
+    dict
+        the dictionary with the calculated properties as arrays over the value range.
+    """
+    if range is None:
+        min_value = np.min(data[value])
+        max_value = np.max(data[value])
+    else:
+        min_value, max_value = range
+
+    dv = (max_value - min_value) / bins
+
+    value_array = np.linspace(min_value + 0.5 * dv, max_value - 0.5 * dv, bins)
+
+    stats = []
+
+    for i in range(bins):
+        value_min_i = min_value + i * dv
+        value_max_i = value_min_i + dv
+        mask = np.logical_and(data[value] >= value_min_i, data[value] <= value_max_i)
+
+        particles_slice = data[mask]
+
+        stats.append(transverse_distributions(particles_slice, axis, propagation_axis=propagation_axis))
+
+    stats = {key: [d[key] for d in stats] for key in stats[0]}
+
+    for k in stats:
+        if isinstance(stats[k][0], pint.Quantity):
+            stats[k] = pint.Quantity.from_list(stats[k])
+        else:
+            stats[k] = np.array(stats[k])
+
+    return value_array, stats
+
+
 def calculate_spectral_transverse_distributions(
     data: pd.DataFrame,
     axis: AxisStr | Iterable[AxisStr],
@@ -247,36 +310,15 @@ def calculate_spectral_transverse_distributions(
     dict
         the dictionary with the calculated properties as arrays over the energy range.
     """
-    if energy_range is None:
-        min_energy = np.min(data['energy'])
-        max_energy = np.max(data['energy'])
-    else:
-        min_energy, max_energy = energy_range
-
-    denergy = (max_energy - min_energy) / bins
-
-    energy_array = np.linspace(min_energy + 0.5 * denergy, max_energy - 0.5 * denergy, bins) * ureg.MeV
-
-    stats = []
-
-    for i in range(bins):
-        energy_min_i = min_energy + i * denergy
-        energy_max_i = energy_min_i + denergy
-        mask = np.logical_and(data['energy'] >= energy_min_i, data['energy'] <= energy_max_i)
-
-        particles_slice = data[mask]
-
-        stats.append(transverse_distributions(particles_slice, axis, propagation_axis=propagation_axis))
-
-    spectral_stats = {key: [d[key] for d in stats] for key in stats[0]}
-
-    for k in spectral_stats:
-        if isinstance(spectral_stats[k][0], pint.Quantity):
-            spectral_stats[k] = pint.Quantity.from_list(spectral_stats[k])
-        else:
-            spectral_stats[k] = np.array(spectral_stats[k])
-
-    spectral_stats['energy'] = energy_array
+    energy_range, spectral_stats = calculate_subset_transverse_distributions(
+        data,
+        axis,
+        bins,
+        value='energy',
+        range=energy_range,
+        propagation_axis=propagation_axis,
+    )
+    spectral_stats['energy'] = energy_range * ureg.MeV
 
     return spectral_stats
 
@@ -661,7 +703,7 @@ def calculate_bunch_stats(
         spectral_stats = calculate_spectral_transverse_distributions(
             particles, transverse_axes, spetral_bins, energy_range=energy_range
         )
-        stats.update({f'spectral_{k}': spectral_stats[k] for k in spectral_stats})
+        stats['spectral'] = spectral_stats
 
     return stats
 
