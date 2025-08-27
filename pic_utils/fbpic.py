@@ -10,14 +10,47 @@ if TYPE_CHECKING:
     from . import materials
 
 
+def __get_particles_per_cell(particles_per_cell: tuple | dict, species_name: str, species_symbol: str) -> tuple:
+    if isinstance(particles_per_cell, dict):
+        if species_name in particles_per_cell:
+            ppc = particles_per_cell[species_name]
+        elif species_symbol in particles_per_cell:
+            ppc = particles_per_cell[species_symbol]
+        else:
+            raise ValueError(
+                f'Particles per cell for species {species_name} ({species_symbol}) not found in the dictionary'
+            )
+    else:
+        ppc = []
+        for v in particles_per_cell:
+            if isinstance(v, dict):
+                if species_name in v:
+                    ppc.append(v[species_name])
+                elif species_symbol in v:
+                    ppc.append(v[species_symbol])
+                else:
+                    raise ValueError(
+                        f'Particles per cell for species {species_name} ({species_symbol}) not found in the dictionary'
+                    )
+            else:
+                ppc.append(v)
+        ppc = tuple(ppc)
+
+    if len(ppc) != 3:
+        raise ValueError('Particles per cell should be a tuple of 3 integers (ppc_z, ppc_r, ppc_theta), given {ppc}')
+
+    return ppc
+
+
 def add_plasma_profile(
     simulation: 'fbpic.main.Simulation',
     profile,
     composition: 'materials.Composition',
-    particles_per_cell,
+    particles_per_cell: 'tuple | dict',
     add_ions=True,
     ionizable_ions=True,
     different_ionized_species=True,
+    prefix=None,
     **kwargs,
 ):
     """Creates a plasma profile for an FBPIC simulation with electrons and ionizable ions.
@@ -30,8 +63,11 @@ def add_plasma_profile(
         The density profile function
     composition : materials.Composition
         The material composition. The number density has to be pint.Quantity.
-    particles_per_cell : tuple, optional
+    particles_per_cell : tuple | dict
         Particles per cell in the z, r, and theta directions
+
+        Can be a tuple of 3 integers (ppc_z, ppc_r, ppc_theta) to be used for all species,
+        or a dictionary with species names as keys and tuples of 3 integers as values.
     add_ions : bool, optional
         Whether to initialize ions, by default True
     ionizable_ions : bool, optional
@@ -40,8 +76,11 @@ def add_plasma_profile(
         Whether to assign different ionization levels different electron species, by default True.
         When it is True, electrons will be named according to their source and ionization level,
         e.g. 'electrons_initial', 'electrons_nitrogen_5'. When it is False, all electrons will be named 'electrons'.
+    prefix : str, optional
+        A prefix to add to all species names, by default None
+        E.g., if prefix='plasma', species will be named 'plasma_electrons', 'plasma_helium', etc.
     kwargs
-        Will be passed to simulation.add_particle_species
+        Will be passed to simulation.add_new_species
 
     Returns
     -------
@@ -52,11 +91,15 @@ def add_plasma_profile(
     if not isinstance(composition.number_density, pint.Quantity):
         raise ValueError('Currently, only pint.Quantity type of density is expected contain dimensions')
 
-    ppc_nz, ppc_nr, ppc_nt = particles_per_cell
-    sim_kwargs = {'dens_func': profile, 'p_nz': ppc_nz, 'p_nr': ppc_nr, 'p_nt': ppc_nt}
+    if prefix is None or prefix == '':
+        prefix = ''
+    else:
+        prefix = f'{prefix}_'
+
+    sim_kwargs = {'dens_func': profile}
     sim_kwargs.update(kwargs)
 
-    ureg = composition.number_density._REGISTRY
+    ureg = pint.get_application_registry()
 
     e = ureg['elementary_charge'].m_as('C')
     m_e = ureg['electron_mass'].m_as('kg')
@@ -66,12 +109,21 @@ def add_plasma_profile(
 
     species = {}
 
+    electrons_element_name = 'electrons'
+    electrons_element_symbol = 'e'
+    electrons_name = f'{prefix}{electrons_element_name}'
+
     if n_e_initial > 0:
-        electrons = simulation.add_new_species(q=-e, m=m_e, n=n_e_initial, **sim_kwargs)
+        ppc_z, ppc_r, ppc_theta = __get_particles_per_cell(
+            particles_per_cell, electrons_element_name, electrons_element_symbol
+        )
+        electrons = simulation.add_new_species(
+            q=-e, m=m_e, n=n_e_initial, p_nz=ppc_z, p_nr=ppc_r, p_nt=ppc_theta, **sim_kwargs
+        )
         if add_ions and ionizable_ions and different_ionized_species:
-            species['electrons_initial'] = electrons
+            species[f'{electrons_name}_initial'] = electrons
         else:
-            species['electrons'] = electrons
+            species[electrons_name] = electrons
 
     if add_ions:
         for el in composition.element_shares:
@@ -81,8 +133,11 @@ def add_plasma_profile(
             if density <= 0:
                 continue
 
-            atoms = simulation.add_new_species(q=e * initial_level, m=mass, n=density, **sim_kwargs)
-            species[el.name] = atoms
+            ppc_z, ppc_r, ppc_theta = __get_particles_per_cell(particles_per_cell, el.name, el.symbol)
+            atoms = simulation.add_new_species(
+                q=e * initial_level, m=mass, n=density, p_nz=ppc_z, p_nr=ppc_r, p_nt=ppc_theta, **sim_kwargs
+            )
+            species[prefix + el.name] = atoms
 
             if ionizable_ions:
                 if different_ionized_species:
@@ -90,15 +145,15 @@ def add_plasma_profile(
                         i: simulation.add_new_species(q=-e, m=m_e) for i in range(initial_level, el.atomic_number)
                     }
                     for i, electrons in atom_electrons.items():
-                        species[f'electrons_{el.name}_{i+1}'] = electrons
+                        species[f'{prefix}electrons_{el.name}_{i + 1}'] = electrons
 
                     atoms.make_ionizable(el.symbol, target_species=atom_electrons, level_start=initial_level)
                 else:
-                    if 'electrons' in species:
-                        electrons = species['electrons']
+                    if electrons_name in species:
+                        electrons = species[electrons_name]
                     else:
                         electrons = simulation.add_new_species(q=-e, m=m_e)
-                        species['electrons'] = electrons
+                        species[electrons_name] = electrons
                     atoms.make_ionizable(el.symbol, target_species=electrons, level_start=initial_level)
 
     return species
@@ -190,7 +245,7 @@ def setup_simulation_parameters(
 ):
     from fbpic.lpa_utils import boosted_frame
 
-    ureg = dz._REGISTRY
+    ureg = pint.get_application_registry()
     c = ureg['speed_of_light']
 
     if output_interval.check({'[length]': 1}):  # given in length
@@ -218,12 +273,10 @@ def setup_simulation_parameters(
         (dt_boost,) = boost.copropag_length([dt_lab])
         dt_max = (dr / c).to('s')
         if dt_max < dt_boost:
-            print(
-                f'The timestep has to be no bigger than {dt_max.to("fs"):.3g#~}, ' f'{dt_boost:.3g#~} would be too big'
-            )
+            print(f'The timestep has to be no bigger than {dt_max.to("fs"):.3g#~}, {dt_boost:.3g#~} would be too big')
             dt_boost = dt_max
         else:
-            print(f'The timestep has to be no bigger than {dt_max.to("fs"):.3g#~}, ' f'actual {dt_boost:.3g#~}')
+            print(f'The timestep has to be no bigger than {dt_max.to("fs"):.3g#~}, actual {dt_boost:.3g#~}')
     else:
         print(f'Timestep: {dt_lab:.3g#~}')
 
@@ -374,7 +427,7 @@ def setup_diagnostics(
                     select=particle_select_lab,
                 )
             )
-            print(f"Particle diagnostics (lab frame) for: {', '.join(particle_species_lab.keys())}")
+            print(f'Particle diagnostics (lab frame) for: {", ".join(particle_species_lab.keys())}')
     else:
         diag_period = simulation_parameters['diag_period']
 
@@ -388,7 +441,7 @@ def setup_diagnostics(
                     period=diag_period, sim=simulation, species=density_species_lab, write_dir=lab_dir
                 )
             )
-            print(f"Density diagnostics for: {', '.join(density_species_lab.keys())}")
+            print(f'Density diagnostics for: {", ".join(density_species_lab.keys())}')
 
         if particle_species_lab:
             diags.append(
@@ -400,7 +453,7 @@ def setup_diagnostics(
                     select=particle_select_lab,
                 )
             )
-            print(f"Particle diagnostics for: {', '.join(particle_species_lab.keys())}")
+            print(f'Particle diagnostics for: {", ".join(particle_species_lab.keys())}')
 
     simulation.diags = diags
 
