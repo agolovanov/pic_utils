@@ -497,3 +497,45 @@ def prepare_script_folder(script: str | Path, script_folder: str | Path, paramet
         return f'"{new_script_path.resolve()}" "{input_parameters_path.resolve()}"'
     else:
         return f'"{new_script_path.resolve()}"'
+
+
+def print_particle_species(data: 'fbpic.main.Particles | fbpic.main.Simulation'):
+    import fbpic.main
+
+    if isinstance(data, fbpic.main.Simulation):
+        for i, species in enumerate(data.ptcl):
+            print(f'Species #{i}:')
+            print_particle_species(species)
+            print('-' * 10)
+        return
+
+    ureg = pint.get_application_registry()
+    e = ureg['elementary_charge'].m_as('C')
+    m_e = ureg['electron_mass'].m_as('kg')
+    m_u = ureg['dalton'].m_as('kg')
+
+    print(f'Charge: {data.q / e:.3g} e')
+    if data.m >= 0.1 * m_u:
+        print(f'Mass: {data.m / m_u:.3g} Da')
+    else:
+        print(f'Mass: {data.m / m_e:.3g} m_e')
+    print(f'Particle shape: {data.particle_shape}')
+    print(f'Number of particles: {data.Ntot}')
+    if data.ionizer is not None:
+        element = data.ionizer.element
+        level_start = data.ionizer.level_start
+        level_max = data.ionizer.level_max
+        print(f'Ionizable species as element [{element}] from level {level_start} to {level_max}')
+
+    if data.injector is not None:
+        injector = data.injector
+        Npr = injector.Npr
+        Nptheta = injector.Nptheta
+        dz_particles = injector.dz_particles
+        rmin = injector.rmin
+        rmax = injector.rmax
+        n = injector.n
+        print(
+            f'Continuous injection with Npr={Npr}, Nptheta={Nptheta}, dz_particles={dz_particles:.3g}, '
+            f'n={n:.3g}, rmin={rmin:.3g}, rmax={rmax:.3g}'
+        )
