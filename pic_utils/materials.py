@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 
 import mendeleev
+import pint
+
+ureg = pint.get_application_registry()
 
 
 @dataclass(frozen=True)
@@ -94,7 +97,7 @@ def calculate_element_shares(molecule_shares, normalize=False):
 
 
 class Composition:
-    def __init__(self, molecule_shares: dict, number_density=None, ionization_levels: dict = None):
+    def __init__(self, molecule_shares: dict, number_density=None, mass_density=None, ionization_levels: dict = None):
         """Creates material composing of several different molecules
 
         Parameters
@@ -105,14 +108,25 @@ class Composition:
         number_density : float or similar, optional
             The number density (molecules per unit volume) of the material.
             By default 1, corresponding to calculations in units relative to some reference number density.
+        mass_density : pint.Quantity, optional
+            The mass density of the material (in mass/volume).
         ionization_levels : dict, optional
             element-int pairs for ionization levels for individual elements
             By default, assumes ionization level of 0.
         """
+        if mass_density is not None and number_density is not None:
+            raise ValueError('Cannot specify both mass_density and number_density')
+
         if number_density is None:
             self.number_density = 1  # calculations per unit of number density
         else:
             self.number_density = number_density
+
+        if mass_density is not None:
+            if mass_density.check('[mass] / [length] ** 3') is False:
+                raise ValueError('mass_density must have dimensions of mass/volume')
+            tmp_composition = Composition(molecule_shares=molecule_shares)
+            self.number_density = (mass_density / (tmp_composition.get_mass_density() * ureg['dalton'])).to('1/m^3')
 
         if ionization_levels is None:
             ionization_levels = {}
@@ -143,7 +157,7 @@ class Composition:
             self.ionized_electron_share += self.ionization_levels[el] * self.element_shares[el]
 
     def __repr__(self):
-        return ', '.join(f'{str(mol)} ({share*100:.3g}%)' for mol, share in self.molecule_shares.items())
+        return ', '.join(f'{str(mol)} ({share * 100:.3g}%)' for mol, share in self.molecule_shares.items())
 
     def __iter__(self):
         return iter(self.element_shares)
@@ -181,3 +195,39 @@ class Composition:
             The electron number density
         """
         return self.number_density * self.total_electron_share
+
+    def get_ionization_density(self):
+        """Calculates the number density of ionized electrons
+
+        Returns
+        -------
+        float or same as number_density
+            The electron number density
+        """
+        return self.number_density * self.ionized_electron_share
+
+    def get_mass_density(self, element: Element | str | None = None):
+        """Calculates mass density of an element or the full composition
+
+        Parameters
+        ----------
+        element : Element | str, optional
+            An element to get the mass density in composition for.
+            If not provided, the function returns the total mass density of the composition.
+
+        Returns
+        -------
+        float or pint.Quantity
+            The mass density in kg/m^3 if number_density is a pint.Quantity; otherwise in atomic mass units per unit volume
+        """
+
+        if element is None:
+            return sum(self.get_mass_density(el) for el in self)
+
+        if isinstance(element, str):
+            element = self.element_map[element]
+
+        mass_density = self.get_number_density(element) * element.relative_atomic_mass
+        if isinstance(self.number_density, pint.Quantity):
+            mass_density = (mass_density * ureg('dalton')).to('kg/m^3')
+        return mass_density
