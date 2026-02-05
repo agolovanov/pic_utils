@@ -250,11 +250,22 @@ def _density_2d_compiled(
 def density_2d(values_x, values_y, weights, grid_x, grid_y):
     import pint
 
+    if isinstance(weights, pint.Quantity):
+        weights_units = weights.units
+        weights = weights.m_as(weights_units)
+    else:
+        weights_units = pint.Unit('dimensionless')
+
+    output_unit = weights_units
+
     if isinstance(grid_x, pint.Quantity):
         values_x = values_x.m_as(grid_x.units)
+        output_unit = output_unit / grid_x.units
         grid_x = grid_x.magnitude
+
     if isinstance(grid_y, pint.Quantity):
         values_y = values_y.m_as(grid_y.units)
+        output_unit = output_unit / grid_y.units
         grid_y = grid_y.magnitude
 
     values_x = np.array(values_x)
@@ -275,6 +286,9 @@ def density_2d(values_x, values_y, weights, grid_x, grid_y):
     grid_values = np.zeros((grid_size_x, grid_size_y), dtype=values_x.dtype)
 
     _density_2d_compiled(grid_values, values_x, values_y, weights, x_min, x_max, grid_size_x, y_min, y_max, grid_size_y)
+
+    if output_unit != pint.Unit('dimensionless'):
+        grid_values = grid_values * output_unit
 
     return grid_values
 
