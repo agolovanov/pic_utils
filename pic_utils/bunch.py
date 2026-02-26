@@ -517,7 +517,7 @@ def propagate_through_magnet(data, B0, length, transverse_max=None, *, axis='x')
     return data
 
 
-def propagate_through_thin_quadrupole(data, focal_length, design_energy):
+def propagate_through_thin_quadrupole(data, focal_length=None, design_energy=None, thickness=None, correct_uz=True):
     """Calculates the result of particle interaction with a thin quadrupole
 
     Parameters
@@ -528,13 +528,101 @@ def propagate_through_thin_quadrupole(data, focal_length, design_energy):
         the focal length of the quadrupole. Positive values correspond to focussing in x, negative in y.
     design_energy : pint.Quantity
         the particle energy for which the focal length was calculated
+    thickness : pint.Quantity, optional
+        the thickness of the quadrupole, by default None (corresponding to zero thickness)
+    correct_uz : bool, optional
+        whether to correct the longitudinal momentum to conserve energy, by default True
     """
     gamma_design = energy_to_gamma(design_energy)
 
     focal_length = focal_length.m_as('m')
 
-    data['ux'] -= gamma_design / focal_length * data['x']
-    data['uy'] += gamma_design / focal_length * data['y']
+    if thickness is None:
+        # This formula is valid for any energy
+        data['ux'] -= gamma_design / focal_length * data['x']
+        data['uy'] += gamma_design / focal_length * data['y']
+    else:
+        thickness = thickness.m_as('m')
+        focal_length_particle = focal_length / gamma_design * data['gamma']
+        coeff = 0.5 * thickness / focal_length_particle
+        coeff2 = coeff / 3
+        ux_new = (1 - coeff) * data['ux'] - gamma_design / focal_length * (1 - coeff2) * data['x']
+        uy_new = (1 + coeff) * data['uy'] + gamma_design / focal_length * (1 + coeff2) * data['y']
+        data['x'] += -coeff * data['x'] + thickness * data['ux'] / data['uz'] * (1 - coeff2)
+        data['y'] += coeff * data['y'] + thickness * data['uy'] / data['uz'] * (1 + coeff2)
+        data['ux'] = ux_new
+        data['uy'] = uy_new
+        data['z'] += thickness
+
+    if correct_uz:
+        uz_new_sqr = data['gamma'] ** 2 - data['ux'] ** 2 - data['uy'] ** 2 - 1
+        data.loc[uz_new_sqr >= 0, 'uz'] = np.sqrt(uz_new_sqr)
+        data.loc[uz_new_sqr < 0, 'uz'] = 0.0
+
+        data['gamma'] = gamma(data['ux'], data['uy'], data['uz'])
+    else:
+        data['gamma'] = gamma(data['ux'], data['uy'], data['uz'])
+
+
+def propagate_through_quadrupole_relativistic(
+    data: pd.DataFrame, focussing_strength: pint.Quantity, length: pint.Quantity
+):
+    """Calculate propagation through a quadrupole assuming that the beam is relativistic
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        the particle data containing keys like 'x', 'ux', 'gamma'
+    focussing_strength : pint.Quantity
+        the focussing strength of the quadrupole, positive values correspond to focussing in x, negative in y
+    length : pint.Quantity
+        the length of the quadrupole
+    """
+    e = ureg['elementary_charge']
+    m = ureg['electron_mass']
+    c = ureg['speed_of_light']
+
+    if focussing_strength < 0:
+        iu1 = 'ux'
+        ir1 = 'x'
+        iu2 = 'uy'
+        ir2 = 'y'
+    else:
+        iu1 = 'uy'
+        ir1 = 'y'
+        iu2 = 'ux'
+        ir2 = 'x'
+
+    print(f'gamma = {np.mean(data["gamma"])}')
+
+    k0 = np.sqrt(e * np.abs(focussing_strength) / m / c).m_as('1/m')
+    k = k0 / np.sqrt(data['gamma'])
+    length = length.m_as('m')
+
+    print(f'k = {np.mean(k)}')
+    print(f'k * length = {np.mean(k) * length}')
+
+    cosh_value = np.cosh(k * length)
+    sinh_value = np.sinh(k * length)
+    cos_value = np.cos(k * length)
+    sin_value = np.sin(k * length)
+
+    u1_new = data[iu1] * cosh_value + data['gamma'] * k * data[ir1] * sinh_value
+    u2_new = data[iu2] * cos_value - data['gamma'] * k * data[ir2] * sin_value
+
+    data[ir1] = data[ir1] * cosh_value + data[iu1] / data['gamma'] / k * sinh_value
+    data[ir2] = data[ir2] * cos_value + data[iu2] / data['gamma'] / k * sin_value
+
+    data[iu1] = u1_new
+    data[iu2] = u2_new
+
+    data['z'] += length
+
+    uz_new_sqr = data['gamma'] ** 2 - data['ux'] ** 2 - data['uy'] ** 2 - 1
+    data.loc[uz_new_sqr >= 0, 'uz'] = np.sqrt(uz_new_sqr)
+    data.loc[uz_new_sqr < 0, 'uz'] = 0.0
+
+    data['gamma'] = gamma(data['ux'], data['uy'], data['uz'])
 
 
 def filter_by_pinhole(
