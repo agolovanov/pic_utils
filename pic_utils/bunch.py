@@ -593,14 +593,9 @@ def propagate_through_quadrupole_relativistic(
         iu2 = 'ux'
         ir2 = 'x'
 
-    print(f'gamma = {np.mean(data["gamma"])}')
-
     k0 = np.sqrt(e * np.abs(focussing_strength) / m / c).m_as('1/m')
     k = k0 / np.sqrt(data['gamma'])
     length = length.m_as('m')
-
-    print(f'k = {np.mean(k)}')
-    print(f'k * length = {np.mean(k) * length}')
 
     cosh_value = np.cosh(k * length)
     sinh_value = np.sinh(k * length)
