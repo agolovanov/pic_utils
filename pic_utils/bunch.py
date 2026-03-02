@@ -284,6 +284,33 @@ def calculate_spectral_transverse_distributions(
 def calculate_spectrum(
     distribution, weights, *, total_weight=None, min_value=None, max_value=None, step=None, nbins=300, grid=None
 ):
+    """Calculates the spectrum of the distribution.
+
+    Parameters
+    ----------
+    distribution :
+        the values for which the spectrum is calculated, e.g., energy
+    weights :
+        the weights for each element in the distribution
+    total_weight : float or pint.Quantity, optional
+        the total weight of the spectrum, by default None (corresponds to the sum of weights)
+    min_value : float or pint.Quantity, optional
+        the minimum value of the distribution, by default None (uses the minimum of the distribution)
+    max_value : float or pint.Quantity, optional
+        the maximum value of the distribution, by default None (uses the maximum of the distribution)
+    step : float or pint.Quantity, optional
+        the step size of the bins, by default None (computed from nbins and min_value/max_value)
+    nbins : int, optional
+        the number of bins, by default 300
+    grid : _type_, optional
+        the grid of bins, by default None
+        If given, the min_value, max_value, step and nbins parameters are ignored.
+
+    Returns
+    -------
+    tuple
+        the spectrum values and the corresponding bin centers.
+    """
     import pint
 
     if grid is not None:
@@ -741,11 +768,18 @@ def calculate_bunch_stats(
     )
 
     if spectral_stats:
-        spectral_stats = calculate_spectral_transverse_distributions(
-            particles, transverse_axes, spetral_bins, energy_range=energy_range
+        spectral_stats_dict = calculate_spectral_transverse_distributions(
+            particles, transverse_axes, spectral_bins, energy_range=energy_range
         )
-        stats.update({f'spectral_{k}': spectral_stats[k] for k in spectral_stats})
+        stats.update({f'spectral_{k}': spectral_stats_dict[k] for k in spectral_stats_dict})
 
+        spectral_charge, *_ = calculate_spectrum(
+            particles['energy'].to_numpy() * ureg.MeV,
+            particles['w'],
+            total_weight=total_charge,
+            grid=spectral_stats_dict['energy'],
+        )
+        stats['spectral_charge'] = spectral_charge
     return stats
 
 
