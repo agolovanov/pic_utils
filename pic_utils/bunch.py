@@ -667,7 +667,7 @@ def calculate_bunch_stats(
     propagation_axis: AxisStr | None = None,
     spectral_stats: bool = False,
     energy_range=None,
-    spetral_bins: int = 40,
+    spectral_bins: int = 40,
 ) -> dict:
     """Calculate the statistics of the bunch, including the total charge, energy, energy spread, mean energy, transverse stats.
 
@@ -681,7 +681,7 @@ def calculate_bunch_stats(
         whether to calculate spectral tranverse stats, by default False
     energy_range : tuple, optional
         min and max energies for the spectral stats, by default None
-    spetral_bins : int, optional
+    spectral_bins : int, optional
         number of points for the spectral stats, by default 40
 
     Returns
