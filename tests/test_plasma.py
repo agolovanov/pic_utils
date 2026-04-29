@@ -26,7 +26,7 @@ def test_plasma_units_pint():
 def test_plasma_units_init(density):
     from pic_utils.plasma import PlasmaUnits
 
-    density = density * ureg['cm^-3']
+    density = density * ureg('cm^-3')
 
     pu_density = PlasmaUnits(density)
     pu_wavelength = PlasmaUnits(pu_density.wavelength)
@@ -53,7 +53,7 @@ def test_plasma_units_conversion():
     from pic_utils.plasma import PlasmaUnits
     from utils import assert_allclose_units
 
-    e = ureg['elementary_charge']
+    e = ureg('elementary_charge')
 
     pu = PlasmaUnits(1e18 * ureg.cm**-3)
 
@@ -75,7 +75,7 @@ def test_plasma_units_conversion():
     test_value(1.0 * ureg.C, 'C')
     test_value(1.0 * ureg.J, 'J')
     test_value(1.0 * ureg.cm**-3, '1/cm^3')
-    test_value(1.0 * ureg['nC/cm^3'], 'nC/cm^3')
-    test_value(1.0 * ureg['V/m'], 'V/m')
-    test_value(1.0 * ureg['T'], 'T')
-    test_value(1.0 * ureg['V'], 'V')
+    test_value(1.0 * ureg('nC/cm^3'), 'nC/cm^3')
+    test_value(1.0 * ureg('V/m'), 'V/m')
+    test_value(1.0 * ureg('T'), 'T')
+    test_value(1.0 * ureg('V'), 'V')

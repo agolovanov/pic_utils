@@ -40,9 +40,9 @@ def energy_to_gamma(energy: pint.Quantity, *, mass: pint.Quantity = None):
     float
         Lorentz factor
     """
-    c = ureg['speed_of_light']
+    c = ureg('speed_of_light')
     if mass is None:
-        mass = ureg['electron_mass']
+        mass = ureg('electron_mass')
     return (energy / mass / c**2).m_as('') + 1.0
 
 
@@ -64,9 +64,9 @@ def gamma_to_energy(gamma, *, mass: pint.Quantity = None, units='MeV') -> pint.Q
         energy in specified units
     """
 
-    c = ureg['speed_of_light']
+    c = ureg('speed_of_light')
     if mass is None:
-        mass = ureg['electron_mass']
+        mass = ureg('electron_mass')
 
     if isinstance(gamma, pd.Series):
         gamma = gamma.to_numpy()
@@ -203,8 +203,8 @@ def calculate_transverse_distributions(
     emittance_tr = np.sqrt(x2_mean * x_prime2_mean - x_x_prime_mean**2)
     emittance_tr_norm = u_long_mean * emittance_tr
 
-    res[f'prime_mean{suffix}'] = (x_prime_mean * ureg['']).to('mrad')
-    res[f'prime_sigma{suffix}'] = (np.sqrt(x_prime2_mean) * ureg['']).to('mrad')
+    res[f'prime_mean{suffix}'] = (x_prime_mean * ureg('')).to('mrad')
+    res[f'prime_sigma{suffix}'] = (np.sqrt(x_prime2_mean) * ureg('')).to('mrad')
     res[f'emittance_tr{suffix}'] = (emittance_tr * ureg.m).to('mm mrad')
     res[f'emittance_tr_norm{suffix}'] = (emittance_tr_norm * ureg.m).to('mm mrad')
 
@@ -425,9 +425,9 @@ def propagate_through_magnet_relativistic(data, B0, length, *, axis='x'):
     ValueError
         if the axis is invalid
     """
-    e = ureg['elementary_charge'].to('esu', 'Gau')
-    m = ureg['electron_mass']
-    c = ureg['speed_of_light']
+    e = ureg('elementary_charge').to('esu', 'Gau')
+    m = ureg('electron_mass')
+    c = ureg('speed_of_light')
 
     B0 = B0.to('gauss', 'Gau')
     z0 = length.m_as('m')
@@ -480,9 +480,9 @@ def propagate_through_magnet(data, B0, length, transverse_max=None, *, axis='x')
     ValueError
         if the axis is invalid
     """
-    e = ureg['elementary_charge'].to('esu', 'Gau')
-    m = ureg['electron_mass']
-    c = ureg['speed_of_light']
+    e = ureg('elementary_charge').to('esu', 'Gau')
+    m = ureg('electron_mass')
+    c = ureg('speed_of_light')
 
     B0 = B0.to('gauss', 'Gau')
     omega0_base = e * B0 / m / c
@@ -605,9 +605,9 @@ def propagate_through_quadrupole_relativistic(
     length : pint.Quantity
         the length of the quadrupole
     """
-    e = ureg['elementary_charge']
-    m = ureg['electron_mass']
-    c = ureg['speed_of_light']
+    e = ureg('elementary_charge')
+    m = ureg('electron_mass')
+    c = ureg('speed_of_light')
 
     if focussing_strength < 0:
         iu1 = 'ux'
@@ -716,8 +716,8 @@ def calculate_bunch_stats(
     dict
         a dictionary with the calculated statistics
     """
-    e = ureg['elementary_charge']
-    c = ureg['speed_of_light']
+    e = ureg('elementary_charge')
+    c = ureg('speed_of_light')
 
     energies = particles['energy'].to_numpy() * ureg.MeV
     weights = particles['w'].to_numpy()
@@ -971,7 +971,7 @@ def generate_gaussian_bunch(
     uz = np.sqrt(u**2 - ux**2 - uy**2)
 
     if charge is not None:
-        e = ureg['elementary_charge']
+        e = ureg('elementary_charge')
         particle_weight = (charge / e / particle_number).m_as('')
     else:
         particle_weight = 1.0

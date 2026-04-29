@@ -101,9 +101,9 @@ def add_plasma_profile(
 
     ureg = pint.get_application_registry()
 
-    e = ureg['elementary_charge'].m_as('C')
-    m_e = ureg['electron_mass'].m_as('kg')
-    m_u = ureg['dalton'].m_as('kg')
+    e = ureg('elementary_charge').m_as('C')
+    m_e = ureg('electron_mass').m_as('kg')
+    m_u = ureg('dalton').m_as('kg')
 
     n_e_initial = composition.get_number_density('e').m_as('1/m^3')
 
@@ -246,7 +246,7 @@ def setup_simulation_parameters(
     from fbpic.lpa_utils import boosted_frame
 
     ureg = pint.get_application_registry()
-    c = ureg['speed_of_light']
+    c = ureg('speed_of_light')
 
     if output_interval.check({'[length]': 1}):  # given in length
         output_interval = output_interval / v_window
@@ -295,10 +295,9 @@ def setup_simulation_parameters(
     diag_dt_boost = None
 
     if use_boost:
-        interaction_time_boost = (
-            boost.interaction_time(interaction_length.m_as('m'), (zmax - zmin).m_as('m'), v_window.m_as('m/s'))
-            * ureg['s']
-        )
+        interaction_time_boost = boost.interaction_time(
+            interaction_length.m_as('m'), (zmax - zmin).m_as('m'), v_window.m_as('m/s')
+        ) * ureg('s')
         print(f'Interaction time in the boosted frame: {interaction_time_boost:.3g#~}')
 
         diag_dt_boost = (interaction_time_boost / (n_diag_timesteps - 1)).to('s')
@@ -510,9 +509,9 @@ def print_particle_species(data: 'fbpic.main.Particles | fbpic.main.Simulation')
         return
 
     ureg = pint.get_application_registry()
-    e = ureg['elementary_charge'].m_as('C')
-    m_e = ureg['electron_mass'].m_as('kg')
-    m_u = ureg['dalton'].m_as('kg')
+    e = ureg('elementary_charge').m_as('C')
+    m_e = ureg('electron_mass').m_as('kg')
+    m_u = ureg('dalton').m_as('kg')
 
     print(f'Charge: {data.q / e:.3g} e')
     if data.m >= 0.1 * m_u:

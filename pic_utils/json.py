@@ -25,7 +25,7 @@ class PintJSONDecoder(json.JSONDecoder):
         if 'numpy_data' in jdict:
             return np.array(jdict['numpy_data'])
         if 'pint_data' in jdict:
-            return self.parse_dictionary(jdict['pint_data']) * self.unit_registry[jdict['pint_units']]
+            return self.parse_dictionary(jdict['pint_data']) * self.unit_registry(jdict['pint_units'])
         return jdict
 
 

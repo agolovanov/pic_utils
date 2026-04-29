@@ -48,7 +48,7 @@ def ensure_units(value, units: pint.Unit | str | None):
     else:
         if not isinstance(units, pint.Unit):
             ureg = pint.get_application_registry()
-            units = ureg[units]
+            units = ureg(units)
         return value * units
 
 

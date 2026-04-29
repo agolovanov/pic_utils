@@ -60,7 +60,7 @@ def test_fft2_inverse():
     x = np.linspace(-10, 5, 50) * ureg.m
     y = np.linspace(-6, 5, 51) * ureg.m
 
-    f = np.random.rand(51, 50) * ureg['kg/m^2']
+    f = np.random.rand(51, 50) * ureg('kg/m^2')
 
     kx, ky, f_fft = fft2(f, x, y)
 

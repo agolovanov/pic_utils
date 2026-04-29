@@ -15,7 +15,7 @@ class OpenPMDWrapper:
         self.ureg = _pint.get_application_registry()
         self.plasma_units = plasma_units
 
-        self.c = self.ureg['speed_of_light']
+        self.c = self.ureg('speed_of_light')
 
     def read_field(
         self,
@@ -46,13 +46,13 @@ class OpenPMDWrapper:
         f, f_info = self.simulation.get_field(field, component, iteration=iteration, theta=theta, m=mode)
 
         if field == 'E':
-            f = f * self.ureg['V/m']
+            f = f * self.ureg('V/m')
         elif field == 'B':
-            f = f * self.ureg['tesla']
+            f = f * self.ureg('tesla')
         elif field == 'J':
-            f = f * self.ureg['C/m^2/s']
+            f = f * self.ureg('C/m^2/s')
         elif field.startswith('rho'):
-            f = f * self.ureg['C/m^3']
+            f = f * self.ureg('C/m^3')
 
         if plasma_units is not None:
             f = plasma_units.convert_to_unitless(f)
@@ -155,7 +155,7 @@ class OpenPMDWrapper:
         return self.simulation.iterations
 
     def times(self, units='s'):
-        return self.simulation.t * self.ureg[units]
+        return self.simulation.t * self.ureg(units)
 
     def species(self):
         species = self.simulation.avail_species

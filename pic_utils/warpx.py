@@ -81,11 +81,11 @@ class FieldProbe2D:
 
     def field_unit(self, field):
         if field in ('Ex', 'Ey', 'Ez'):
-            unit = self.ureg['V/m']
+            unit = self.ureg('V/m')
         elif field in ('Bx', 'By', 'Bz'):
-            unit = self.ureg['T']
+            unit = self.ureg('T')
         elif field == 'S':
-            unit = self.ureg['W/m^2']
+            unit = self.ureg('W/m^2')
         else:
             raise ValueError(f'Unknown field {field}')
         return unit

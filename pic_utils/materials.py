@@ -126,7 +126,7 @@ class Composition:
             if mass_density.check('[mass] / [length] ** 3') is False:
                 raise ValueError('mass_density must have dimensions of mass/volume')
             tmp_composition = Composition(molecule_shares=molecule_shares)
-            self.number_density = (mass_density / (tmp_composition.get_mass_density() * ureg['dalton'])).to('1/m^3')
+            self.number_density = (mass_density / (tmp_composition.get_mass_density() * ureg('dalton'))).to('1/m^3')
 
         if ionization_levels is None:
             ionization_levels = {}

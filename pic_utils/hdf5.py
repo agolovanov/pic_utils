@@ -102,7 +102,7 @@ def load_array(group: h5py.Group, name: str):
             return None
     if 'units' in group[name].attrs:
         ureg = pint.get_application_registry()
-        return group[name][()] * ureg[group[name].attrs['units']]
+        return group[name][()] * ureg(group[name].attrs['units'])
     else:
         value = group[name][()]
         if isinstance(value, bytes):
