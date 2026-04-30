@@ -16,7 +16,7 @@ def fftfreq(x: np.ndarray, k_size: int = None):
     return k
 
 
-def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inverse: bool = False):
+def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inverse: bool = False, normalize: bool = True):
     """Perform 1D FFT over the data.
 
     Parameters
@@ -31,6 +31,9 @@ def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inv
         For the inverse transform, reduces the size of the output array by this factor.
     inverse: bool, optional
         if True, performs inverse FFT, by default False
+    normalize: bool, default: True
+        if True and x is provided, applies a normalization such that
+        sum |f|^2 dx = sum |f_fft|^2 dk.
 
     Returns
     -------
@@ -63,6 +66,17 @@ def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inv
         k_size = int(round(padding_factor * f.shape[0]))
         f_fft = ensure_units(_fft.fftshift(_fft.fft(f, k_size)), f_units)
 
+    # Apply normalization whenever the coordinate axis is provided.
+    if normalize and x is not None:
+        dx = x[1] - x[0]
+
+        if inverse:
+            norm_factor = f.shape[0] * dx / np.sqrt(2 * np.pi)
+        else:
+            norm_factor = dx / np.sqrt(2 * np.pi)
+
+        f_fft = f_fft * norm_factor
+
     if x is not None:
         if inverse:
             k = fftfreq(x)[:k_size]
@@ -76,7 +90,7 @@ def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inv
 
 
 def fft2(
-    f: np.ndarray, x: np.ndarray = None, y: np.ndarray = None, *, padding_factor: float = 1.0, inverse: bool = False
+    f: np.ndarray, x: np.ndarray = None, y: np.ndarray = None, *, padding_factor: float = 1.0, inverse: bool = False, normalize: bool = True
 ):
     """Perform 2D FFT over the data.
 
@@ -94,6 +108,9 @@ def fft2(
         For the inverse transform, reduces the size of the output array by this factor.
     inverse: bool, optional
         if True, performs inverse FFT, by default False
+    normalize: bool, default: True
+        if True and x and y are provided, applies a normalization such that
+        sum |f|^2 dx dy = sum |f_fft|^2 dkx dky.
 
     Returns
     -------
@@ -133,6 +150,18 @@ def fft2(
         ky_size = int(round(padding_factor * f.shape[0]))
 
         f_fft = ensure_units(_fft.fftshift(_fft.fft2(f, (ky_size, kx_size))), f_units)
+
+    # Apply normalization whenever both axes are provided.
+    if normalize and x is not None and y is not None:
+        dx = x[1] - x[0]
+        dy = y[1] - y[0]
+
+        if inverse:
+            norm_factor = f.shape[0] * f.shape[1] * dx * dy / (2 * np.pi)
+        else:
+            norm_factor = (dx * dy) / (2 * np.pi)
+
+        f_fft = f_fft * norm_factor
 
     if x is not None and y is not None:
         if inverse:
