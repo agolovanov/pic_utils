@@ -16,7 +16,15 @@ def fftfreq(x: np.ndarray, k_size: int = None):
     return k
 
 
-def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inverse: bool = False, normalize: bool = True):
+def fft(
+    f: np.ndarray,
+    x: np.ndarray = None,
+    *,
+    padding_factor: float = 1.0,
+    inverse: bool = False,
+    normalize: bool = True,
+    x0=None,
+):
     """Perform 1D FFT over the data.
 
     Parameters
@@ -34,6 +42,8 @@ def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inv
     normalize: bool, default: True
         if True and x is provided, applies a normalization such that
         sum |f|^2 dx = sum |f_fft|^2 dk.
+    x0 : float, optional
+        origin of the real-space axis for inverse transforms.
 
     Returns
     -------
@@ -56,11 +66,19 @@ def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inv
     if padding_factor < 1.0:
         raise ValueError('padding_factor should be greater than or equal to 1.0')
 
+    if not inverse and x0 is not None:
+        raise ValueError('x0 can only be provided for inverse transforms')
+
     f, f_units = split_magnitude_units(f)
 
     if inverse:
         # remove padding in the inverse transform instead
         k_size = int(round(f.shape[0] / padding_factor))
+        if x is not None and x0 is not None:
+            phase = x * x0
+            phase = phase.m_as('') if hasattr(phase, 'm_as') else phase
+            f = f * np.exp(1j * phase)
+
         f_fft = ensure_units(_fft.ifft(_fft.ifftshift(f)), f_units)[:k_size]
     else:
         k_size = int(round(padding_factor * f.shape[0]))
@@ -81,8 +99,13 @@ def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inv
         if inverse:
             k = fftfreq(x)[:k_size]
             k -= k[0]
+            if x0 is not None:
+                k += x0
         else:
             k = fftfreq(x, k_size)
+            phase = k * x[0]
+            phase = phase.m_as('') if hasattr(phase, 'm_as') else phase
+            f_fft = f_fft * np.exp(-1j * phase)
 
         return k, f_fft
     else:
@@ -90,7 +113,15 @@ def fft(f: np.ndarray, x: np.ndarray = None, *, padding_factor: float = 1.0, inv
 
 
 def fft2(
-    f: np.ndarray, x: np.ndarray = None, y: np.ndarray = None, *, padding_factor: float = 1.0, inverse: bool = False, normalize: bool = True
+    f: np.ndarray,
+    x: np.ndarray = None,
+    y: np.ndarray = None,
+    *,
+    padding_factor: float = 1.0,
+    inverse: bool = False,
+    normalize: bool = True,
+    x0=None,
+    y0=None,
 ):
     """Perform 2D FFT over the data.
 
@@ -111,6 +142,8 @@ def fft2(
     normalize: bool, default: True
         if True and x and y are provided, applies a normalization such that
         sum |f|^2 dx dy = sum |f_fft|^2 dkx dky.
+    x0, y0 : float, optional
+        origins of the real-space axes for inverse transforms.
 
     Returns
     -------
@@ -138,11 +171,23 @@ def fft2(
     if padding_factor < 1.0:
         raise ValueError('padding_factor should be greater than or equal to 1.0')
 
+    if not inverse and (x0 is not None or y0 is not None):
+        raise ValueError('x0 and y0 can only be provided for inverse transforms')
+
     f, f_units = split_magnitude_units(f)
 
     if inverse:
         kx_size = int(round(f.shape[1] / padding_factor))
         ky_size = int(round(f.shape[0] / padding_factor))
+
+        if x is not None and y is not None and (x0 is not None or y0 is not None):
+            phase = 0
+            if x0 is not None:
+                phase = phase + x[None, :] * x0
+            if y0 is not None:
+                phase = phase + y[:, None] * y0
+            phase = phase.m_as('') if hasattr(phase, 'm_as') else phase
+            f = f * np.exp(1j * phase)
 
         f_fft = ensure_units(_fft.ifft2(_fft.ifftshift(f)), f_units)[:ky_size, :kx_size]
     else:
@@ -169,9 +214,16 @@ def fft2(
             ky = fftfreq(y)[:ky_size]
             kx -= kx[0]
             ky -= ky[0]
+            if x0 is not None:
+                kx += x0
+            if y0 is not None:
+                ky += y0
         else:
             kx = fftfreq(x, kx_size)
             ky = fftfreq(y, ky_size)
+            phase = ky[:, None] * y[0] + kx[None, :] * x[0]
+            phase = phase.m_as('') if hasattr(phase, 'm_as') else phase
+            f_fft = f_fft * np.exp(-1j * phase)
 
         return kx, ky, f_fft
     else:
