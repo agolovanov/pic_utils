@@ -4,10 +4,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pint
 
+from .diagnostics import BackTransformedOnAxisEzDiagnostic
+
+__all__ = ['BackTransformedOnAxisEzDiagnostic']
+
 if TYPE_CHECKING:
     import fbpic.main
 
-    from . import materials
+    from .. import materials
 
 
 def __get_particles_per_cell(particles_per_cell: tuple | dict, species_name: str, species_symbol: str) -> tuple:
@@ -363,6 +367,7 @@ def setup_diagnostics(
     particle_species_lab: dict = None,
     density_species_lab: dict = None,
     particle_select_lab=None,
+    on_axis_ez_lab: bool = False,
 ):
     from fbpic.openpmd_diag import (
         BackTransformedFieldDiagnostic,
@@ -405,6 +410,23 @@ def setup_diagnostics(
                 )
             )
             print(f'Field diagnostics (lab frame) for: {", ".join(fields_lab)}')
+
+        if on_axis_ez_lab:
+            diags.append(
+                BackTransformedOnAxisEzDiagnostic(
+                    zmin_lab=zmin,
+                    zmax_lab=zmax,
+                    v_lab=v_lab,
+                    dt_snapshots_lab=lab_dt,
+                    Ntot_snapshots_lab=lab_timesteps,
+                    gamma_boost=gamma,
+                    fldobject=fld,
+                    comm=comm,
+                    write_dir=lab_dir,
+                    period=period,
+                )
+            )
+            print('On-axis Ez diagnostic (lab frame)')
 
         if density_species_lab is not None:
             print('Particle density diagnostic is not available for the lab frame in boosted frame simulations')
@@ -453,6 +475,9 @@ def setup_diagnostics(
                 )
             )
             print(f'Particle diagnostics for: {", ".join(particle_species_lab.keys())}')
+
+        if on_axis_ez_lab:
+            print('On-axis Ez diagnostic is not available for non-boosted simulations')
 
     simulation.diags = diags
 

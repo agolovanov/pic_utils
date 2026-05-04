@@ -5,3 +5,4 @@ build
 pic_utils/__pycache__
 .hypothesis
 .pytest_cache
+__pycache__
