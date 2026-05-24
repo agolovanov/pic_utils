@@ -33,7 +33,7 @@ Keep public APIs importable without heavy side effects. Prefer NumPy/SciPy vecto
 
 ## Testing Guidelines
 
-Add or update tests in `tests/` for behavioral changes. Name files `test_<module>.py` and test functions `test_<behavior>()`. Use deterministic numeric assertions and scientific tolerances, for example `numpy.testing.assert_allclose`.
+Update tests in `tests/` for behavioral changes. Name files `test_<module>.py` and test functions `test_<behavior>()`. Use deterministic numeric assertions and scientific tolerances, for example `numpy.testing.assert_allclose`. Don't create tests for modules which don't have tests already, unless explicitly asked.
 
 Run `pytest` before submitting changes. For focused work, run a single module such as:
 

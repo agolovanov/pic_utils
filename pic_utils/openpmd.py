@@ -183,7 +183,7 @@ class OpenPMDWrapper:
         iteration,
         component,
         *,
-        geometry='xz',
+        geometry: typing.Literal['xz', 'yz', 'xy', '3d'] = 'xz',
         grid=False,
         mode='all',
         only_positive_r=False,
@@ -208,10 +208,90 @@ class OpenPMDWrapper:
         by = self.read_field(iteration, 'B', 'y', grid=False, **kwargs)
 
         if grid:
-            xx, yy, ex = ex
-            return xx, yy, poynting_vector(ex, ey, bx, by)
+            if geometry == '3d':
+                zz, xx, yy, ex = ex
+                return zz, xx, yy, poynting_vector(ex, ey, bx, by)
+            else:
+                xx, yy, ex = ex
+                return xx, yy, poynting_vector(ex, ey, bx, by)
         else:
             return poynting_vector(ex, ey, bx, by)
+
+    def read_fluence(
+        self,
+        iteration,
+        *,
+        geometry: typing.Literal['x', 'y', 'xy'] = 'xy',
+        grid=False,
+        mode='all',
+        only_positive_r=False,
+    ):
+        """
+        Calculate the transverse fluence distribution from the longitudinal Poynting vector.
+
+        The fluence is evaluated from a field snapshot as ``integral(S_z dz) / c``.
+
+        Parameters
+        ----------
+        iteration : int
+            Iteration number to read.
+        geometry : {'x', 'y', 'xy'}, optional
+            Transverse distribution to return. ``'x'`` and ``'y'`` return 1D
+            profiles calculated from the corresponding longitudinal plane.
+            ``'xy'`` returns a 2D transverse map calculated from the full 3D
+            reconstruction.
+        grid : bool, optional
+            When ``True``, return transverse grid coordinates together with the
+            fluence distribution.
+        mode : int | {'all'}, optional
+            Azimuthal mode passed to openPMD-viewer.
+        only_positive_r : bool, optional
+            For ``'x'`` and ``'y'``, keep only the non-negative radial half of
+            the source longitudinal plane.
+
+        Returns
+        -------
+        pint.Quantity | tuple
+            Fluence in ``J/m^2``. With ``grid=True``, returns ``(x, fluence)``
+            for ``'x'``, ``(y, fluence)`` for ``'y'``, and ``(xx, yy, fluence)``
+            for ``'xy'``.
+        """
+        if geometry == 'x':
+            source_geometry = 'xz'
+        elif geometry == 'y':
+            source_geometry = 'yz'
+        elif geometry == 'xy':
+            if only_positive_r:
+                raise ValueError(f'Value {only_positive_r=} is not allowed when {geometry=}')
+            source_geometry = '3d'
+        else:
+            raise ValueError(f'Geometry {geometry} is not available, only x, y, xy')
+
+        data = self.read_poynting_vector(
+            iteration,
+            'z',
+            geometry=source_geometry,
+            grid=True,
+            mode=mode,
+            only_positive_r=only_positive_r,
+        )
+
+        if geometry == 'xy':
+            zz, xx, yy, sz = data
+            z = zz[0, 0, :].to('m')
+            fluence = (_np.trapezoid(sz, z, axis=2) / self.c).to('J/m^2')
+            if grid:
+                return xx[:, :, 0].copy(), yy[:, :, 0].copy(), fluence
+            else:
+                return fluence
+        else:
+            zz, transverse, sz = data
+            z = zz[0, :].to('m')
+            fluence = (_np.trapezoid(sz, z, axis=1) / self.c).to('J/m^2')
+            if grid:
+                return transverse[:, 0].copy(), fluence
+            else:
+                return fluence
 
     def read_particles(
         self,
