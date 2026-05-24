@@ -19,31 +19,111 @@ class OpenPMDWrapper:
 
     def read_field(
         self,
-        iteration,
-        field,
-        component=None,
+        iteration: int,
+        field: str,
+        component: str | None = None,
         *,
-        geometry='xz',
-        grid=False,
-        mode='all',
-        only_positive_r=False,
-        plasma_units: 'PlasmaUnits | str | None' = 'auto',
-    ):
+        geometry: typing.Literal['xz', 'yz', 'xy', '3d'] = 'xz',
+        grid: bool = False,
+        mode: int | typing.Literal['all'] = 'all',
+        only_positive_r: bool = False,
+        slice_relative_position: float | list[float] | None = None,
+        plasma_units: 'PlasmaUnits | typing.Literal["auto"] | None' = 'auto',
+    ) -> '_np.ndarray | _pint.Quantity | tuple[_np.ndarray | _pint.Quantity, ...]':
+        """
+        Read an openPMD field component in one of the supported geometries.
+
+        The field is read through openPMD-viewer's ``get_field`` API and then
+        converted to pint units, or to the configured plasma units when
+        requested.
+
+        Parameters
+        ----------
+        iteration : int
+            Iteration number to read.
+        field : str
+            Field record name, for example ``'E'``, ``'B'``, ``'J'`` or a
+            charge-density record such as ``'rho_electrons'``.
+        component : str | None, optional
+            Field component for vector records, for example ``'x'``, ``'y'``
+            or ``'z'``. Use ``None`` for scalar records.
+        geometry : {'xz', 'yz', 'xy', '3d'}, optional
+            Geometry to return:
+
+            - ``'xz'``: theta-mode plane at ``theta = 0``.
+            - ``'yz'``: theta-mode plane at ``theta = pi / 2``.
+            - ``'xy'``: Cartesian transverse slice at fixed ``z``.
+            - ``'3d'``: full Cartesian reconstruction.
+
+        grid : bool, optional
+            When ``True``, return coordinate grids together with the field.
+        mode : int | {'all'}, optional
+            Azimuthal mode passed to openPMD-viewer. Use ``'all'`` to sum all
+            available modes.
+        only_positive_r : bool, optional
+            For ``'xz'`` and ``'yz'``, keep only the non-negative radial half
+            of the plane.
+        slice_relative_position : float | list[float] | None, optional
+            Relative slice position passed to openPMD-viewer for ``'xy'``
+            geometry. Values are in ``[-1, 1]``; ``0`` is the center of the
+            simulation box. This argument is only supported for ``'xy'``.
+        plasma_units : PlasmaUnits | {'auto'} | None, optional
+            Unit conversion policy. ``'auto'`` uses the wrapper's configured
+            plasma units, ``None`` keeps pint quantities, and a ``PlasmaUnits``
+            instance converts the field and grids to unitless plasma units.
+
+        Returns
+        -------
+        numpy.ndarray | pint.Quantity | tuple
+            If ``grid`` is ``False``, returns the field array.
+
+            If ``grid`` is ``True``, returns:
+
+            - ``(zz, xx, f)`` for ``'xz'`` and ``'yz'``.
+            - ``(xx, yy, f)`` for ``'xy'``.
+            - ``(zz, xx, yy, f)`` for ``'3d'``.
+
+        Raises
+        ------
+        ValueError
+            If ``geometry`` is unsupported, if ``only_positive_r`` is used
+            with ``'xy'`` or ``'3d'``, or if ``slice_relative_position`` is
+            provided for a geometry other than ``'xy'``.
+        """
+        if geometry != 'xy' and slice_relative_position is not None:
+            raise ValueError(f'Value {slice_relative_position=} is only allowed when geometry="xy"')
+
         if geometry == 'xz':
             theta = 0.0
+            slice_across = None
         elif geometry == 'yz':
             theta = _np.pi / 2
+            slice_across = None
+        elif geometry == 'xy':
+            if only_positive_r:
+                raise ValueError(f'Value {only_positive_r=} is not allowed when {geometry=}')
+            theta = None
+            slice_across = 'z'
         elif geometry == '3d':
             if only_positive_r:
                 raise ValueError(f'Value {only_positive_r=} is not allowed when {geometry=}')
             theta = None
+            slice_across = None
         else:
-            raise ValueError(f'Geometry {geometry} is not available, only xz, yz, 3d')
+            raise ValueError(f'Geometry {geometry} is not available, only xz, yz, xy, 3d')
 
         if plasma_units == 'auto':
             plasma_units = self.plasma_units
 
-        f, f_info = self.simulation.get_field(field, component, iteration=iteration, theta=theta, m=mode)
+        f, f_info = self.simulation.get_field(
+            field,
+            component,
+            iteration=iteration,
+            theta=theta,
+            m=mode,
+            slice_across=slice_across,
+            slice_relative_position=slice_relative_position,
+        )
 
         if field == 'E':
             f = f * self.ureg('V/m')
@@ -70,6 +150,17 @@ class OpenPMDWrapper:
                 return zz, xx, yy, f
             else:
                 return f
+        elif geometry == 'xy':
+            if grid:
+                xx, yy = _np.meshgrid(f_info.x, f_info.y, indexing='ij')
+                xx = (xx * self.ureg.m).to('um')
+                yy = (yy * self.ureg.m).to('um')
+                if plasma_units is not None:
+                    xx = plasma_units.convert_to_unitless(xx)
+                    yy = plasma_units.convert_to_unitless(yy)
+                return xx, yy, f
+            else:
+                return f
         else:
             r = f_info.r
             if only_positive_r:
@@ -88,14 +179,27 @@ class OpenPMDWrapper:
                 return f
 
     def read_poynting_vector(
-        self, iteration, component, *, geometry='xz', grid=False, mode='all', only_positive_r=False
+        self,
+        iteration,
+        component,
+        *,
+        geometry='xz',
+        grid=False,
+        mode='all',
+        only_positive_r=False,
+        slice_relative_position=None,
     ):
         from .electromagnetism import poynting_vector
 
         if component != 'z':
             raise NotImplementedError(f'Components other than z are not implemented yet, {component} not available')
 
-        kwargs = {'geometry': geometry, 'mode': mode, 'only_positive_r': only_positive_r}
+        kwargs = {
+            'geometry': geometry,
+            'mode': mode,
+            'only_positive_r': only_positive_r,
+            'slice_relative_position': slice_relative_position,
+        }
 
         ex = self.read_field(iteration, 'E', 'x', grid=grid, **kwargs)
         ey = self.read_field(iteration, 'E', 'y', grid=False, **kwargs)
