@@ -17,6 +17,17 @@ class OpenPMDWrapper:
 
         self.c = self.ureg('speed_of_light')
 
+    def _get_field_units(self, field: str):
+        if field == 'E':
+            return self.ureg('V/m')
+        if field == 'B':
+            return self.ureg('tesla')
+        if field == 'J':
+            return self.ureg('C/m^2/s')
+        if field.startswith('rho'):
+            return self.ureg('C/m^3')
+        return self.ureg.dimensionless
+
     def read_field(
         self,
         iteration: int,
@@ -125,14 +136,7 @@ class OpenPMDWrapper:
             slice_relative_position=slice_relative_position,
         )
 
-        if field == 'E':
-            f = f * self.ureg('V/m')
-        elif field == 'B':
-            f = f * self.ureg('tesla')
-        elif field == 'J':
-            f = f * self.ureg('C/m^2/s')
-        elif field.startswith('rho'):
-            f = f * self.ureg('C/m^3')
+        f = f * self._get_field_units(field)
 
         if plasma_units is not None:
             f = plasma_units.convert_to_unitless(f)
@@ -292,6 +296,175 @@ class OpenPMDWrapper:
                 return transverse[:, 0].copy(), fluence
             else:
                 return fluence
+
+    def read_cylindrical_mode(
+        self,
+        iteration: int,
+        field: str,
+        component: str | None,
+        mode: int,
+        *,
+        grid: bool = False,
+        only_positive_r: bool = False,
+    ):
+        """
+        Read the raw complex cylindrical amplitude for one theta mode.
+
+        openPMD-viewer exposes theta-mode fields through reconstructed planes,
+        but its theta-mode datasets store real coefficients: ``m=0`` at index
+        0 and, for ``m > 0``, cosine/sine coefficients at indices
+        ``2*m - 1`` and ``2*m``. This method returns the equivalent complex
+        amplitude ``cos + 1j * sin`` on the ``(r, z)`` grid.
+        """
+        if not isinstance(mode, int) or isinstance(mode, bool) or mode < 0:
+            raise ValueError(f'Value {mode=} is not allowed, use a non-negative integer mode')
+
+        modes = self.available_cylindrical_modes(field)
+        if mode not in modes:
+            raise ValueError(f'Mode {mode} is not available. Available modes: {modes}')
+
+        data, z, r = self._read_raw_cylindrical_mode_data(iteration, field, component, mode, only_positive_r)
+
+        data = data * self._get_field_units(field)
+
+        if grid:
+            zz, rr = _np.meshgrid(z, r)
+            return (zz * self.ureg.m).to('um'), (rr * self.ureg.m).to('um'), data
+        else:
+            return data
+
+    def calculate_radial_power_density(
+        self,
+        iteration: int,
+        mode: int | typing.Literal['all'] = 'all',
+        *,
+        density: typing.Literal['radial', 'angular_average'] = 'angular_average',
+        grid: bool = False,
+        only_positive_r: bool = False,
+    ):
+        """
+        Calculate the angular integral of the longitudinal Poynting flux.
+
+        For each requested azimuthal mode, this analytically evaluates
+        ``integral_0^2pi S_z,m dtheta`` from raw complex cylindrical mode
+        amplitudes, where ``S_z = (E_r B_t - E_t B_r) / mu0``.
+
+        Parameters
+        ----------
+        iteration : int
+            Iteration number to read.
+        mode : int | {'all'}, optional
+            Azimuthal mode. ``'all'`` sums the independent contributions of
+            all available modes.
+        density : {'radial', 'angular_average'}, optional
+            ``'radial'`` returns ``r * integral(S_z dtheta)`` in ``W/m``.
+            ``'angular_average'`` returns ``integral(S_z dtheta) / (2*pi)``
+            in ``W/m^2``.
+
+            Defaults to ``'angular_average'``.
+        grid : bool, optional
+            When ``True``, return ``(z, r, density)`` coordinate grids.
+        only_positive_r : bool, optional
+            When ``True``, keep only the non-negative radial half of the
+            theta-mode plane. By default, return the full signed radial axis.
+
+        Returns
+        -------
+        pint.Quantity | tuple
+            Power density array on the ``(r, z)`` grid.
+        """
+        if density not in ('radial', 'angular_average'):
+            raise ValueError(f'Unknown {density=}; use "radial" or "angular_average"')
+
+        if mode == 'all':
+            modes = list(set(self.available_cylindrical_modes('E')) & set(self.available_cylindrical_modes('B')))
+            if len(modes) == 0:
+                raise ValueError('No common modes available for E and B fields')
+            power_density = self.calculate_radial_power_density(
+                iteration, modes[0], density=density, grid=grid, only_positive_r=only_positive_r
+            )
+            if grid:
+                zz, rr, power_density = power_density
+            for mode in modes[1:]:
+                power_density += self.calculate_radial_power_density(
+                    iteration, mode, density=density, grid=False, only_positive_r=only_positive_r
+                )
+
+            return power_density if not grid else (zz, rr, power_density)
+
+        from .units import real, conj
+
+        mu0 = self.ureg('vacuum_permeability')
+
+        force_grid = grid or density == 'radial'
+
+        er = self.read_cylindrical_mode(iteration, 'E', 'r', mode, grid=force_grid, only_positive_r=only_positive_r)
+        if force_grid:
+            zz, rr, er = er
+        et = self.read_cylindrical_mode(iteration, 'E', 't', mode, only_positive_r=only_positive_r)
+        br = self.read_cylindrical_mode(iteration, 'B', 'r', mode, only_positive_r=only_positive_r)
+        bt = self.read_cylindrical_mode(iteration, 'B', 't', mode, only_positive_r=only_positive_r)
+
+        if mode == 0:
+            mode_integral = real(er * bt - et * br) / mu0
+        else:
+            mode_integral = 0.5 * real(er * conj(bt) - et * conj(br)) / mu0
+        mode_integral = mode_integral.to('W/m^2')
+
+        if density == 'angular_average':
+            result = mode_integral
+        else:
+            result = 2 * _np.pi * (rr.to('m') * mode_integral).to('W/m')
+
+        if grid:
+            return zz, rr, result
+        else:
+            return result
+
+    def available_cylindrical_modes(self, field: str) -> list[int]:
+        if field not in self.simulation.avail_fields:
+            raise ValueError(f'Field {field} is not available')
+        metadata = self.simulation.fields_metadata[field]
+        if metadata['geometry'] != 'thetaMode':
+            raise ValueError(f'Field {field} has geometry {metadata["geometry"]}, not thetaMode')
+        return [int(m) for m in metadata['avail_circ_modes'] if m != 'all']
+
+    def _read_raw_cylindrical_mode_data(
+        self,
+        iteration: int,
+        field: str,
+        component: str | None,
+        mode: int,
+        only_positive_r: bool,
+    ) -> 'tuple[_np.ndarray, _np.ndarray, _np.ndarray]':
+        self.simulation._find_output(None, iteration)
+        iteration = self.simulation.iterations[self.simulation._current_i]
+
+        if mode == 0:
+            data, info = self.simulation.data_reader.read_field_circ(iteration, field, component, None, None, mode, 0.0)
+            data = data.astype(complex)
+        else:
+            data_cos, info = self.simulation.data_reader.read_field_circ(
+                iteration, field, component, None, None, mode, 0.0
+            )
+            data_sin, _ = self.simulation.data_reader.read_field_circ(
+                iteration, field, component, None, None, mode, _np.pi / (2 * mode)
+            )
+            data = data_cos + 1j * data_sin
+
+        data, r = self._normalize_theta_mode_data(data, info, only_positive_r)
+        return data, info.z, r
+
+    def _normalize_theta_mode_data(self, data, info, only_positive_r):
+        r_axis = next(axis for axis, label in info.axes.items() if label == 'r')
+        if r_axis == 1:
+            data = data.T
+
+        if not only_positive_r:
+            return data, info.r
+
+        index = len(info.r) // 2
+        return data[index:, :], info.r[index:]
 
     def read_particles(
         self,

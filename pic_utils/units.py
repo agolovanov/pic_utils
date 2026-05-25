@@ -1,4 +1,5 @@
 import pint
+import numpy as _np
 
 
 def strip_units(value, target_unit: pint.Unit | str):
@@ -70,3 +71,41 @@ def split_magnitude_units(value) -> tuple:
         return value.magnitude, value.units
     else:
         return value, None
+
+
+def real(value):
+    """Returns the real part of the value. If the value has units, the units are preserved.
+
+    Parameters
+    ----------
+    value :
+        the value to be returned
+
+    Returns
+    -------
+    value with the real part of the magnitude and the same units as the input value
+    """
+
+    if isinstance(value, pint.Quantity):
+        return _np.real(value.magnitude) * value.units
+    else:
+        return _np.real(value)
+
+
+def conj(value):
+    """Returns the complex conjugate of the value. If the value has units, the units are preserved.
+
+    Parameters
+    ----------
+    value :
+        the value to be returned
+
+    Returns
+    -------
+    value with the complex conjugate of the magnitude and the same units as the input value
+    """
+
+    if isinstance(value, pint.Quantity):
+        return _np.conj(value.magnitude) * value.units
+    else:
+        return _np.conj(value)
