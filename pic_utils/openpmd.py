@@ -333,7 +333,7 @@ class OpenPMDWrapper:
         else:
             return data
 
-    def calculate_radial_power_density(
+    def calculate_mode_power_density(
         self,
         iteration: int,
         mode: int | typing.Literal['all'] = 'all',
@@ -344,10 +344,6 @@ class OpenPMDWrapper:
     ):
         """
         Calculate the angular integral of the longitudinal Poynting flux.
-
-        For each requested azimuthal mode, this analytically evaluates
-        ``integral_0^2pi S_z,m dtheta`` from raw complex cylindrical mode
-        amplitudes, where ``S_z = (E_r B_t - E_t B_r) / mu0``.
 
         Parameters
         ----------
@@ -380,13 +376,13 @@ class OpenPMDWrapper:
             modes = list(set(self.available_cylindrical_modes('E')) & set(self.available_cylindrical_modes('B')))
             if len(modes) == 0:
                 raise ValueError('No common modes available for E and B fields')
-            power_density = self.calculate_radial_power_density(
+            power_density = self.calculate_mode_power_density(
                 iteration, modes[0], density=density, grid=grid, only_positive_r=only_positive_r
             )
             if grid:
                 zz, rr, power_density = power_density
             for mode in modes[1:]:
-                power_density += self.calculate_radial_power_density(
+                power_density += self.calculate_mode_power_density(
                     iteration, mode, density=density, grid=False, only_positive_r=only_positive_r
                 )
 
@@ -420,6 +416,110 @@ class OpenPMDWrapper:
             return zz, rr, result
         else:
             return result
+
+    def calculate_mode_energy_density(
+        self,
+        iteration: int,
+        mode: int | typing.Literal['all'] = 'all',
+        *,
+        density: typing.Literal['radial', 'angular_average'] = 'angular_average',
+        grid: bool = False,
+        only_positive_r: bool = False,
+    ):
+        """
+        Calculate the radial EM energy density from the longitudinal Poynting flux.
+
+        Parameters
+        ----------
+        iteration : int
+            Iteration number to read.
+        mode : int | {'all'}, optional
+            Azimuthal mode. ``'all'`` sums the independent contributions of
+            all available modes.
+        density : {'radial', 'angular_average'}, optional
+            ``'radial'`` returns ``integral(r * integral(S_z dtheta) dz / c)``
+            in ``J/m``. ``'angular_average'`` returns
+            ``integral(integral(S_z dtheta) / (2*pi) dz / c)`` in ``J/m^2``.
+
+            Defaults to ``'angular_average'``.
+        grid : bool, optional
+            When ``True``, return ``(r, density)``.
+        only_positive_r : bool, optional
+            When ``True``, keep only the non-negative radial half of the
+            theta-mode plane. By default, return the full signed radial axis.
+
+        Returns
+        -------
+        pint.Quantity | tuple
+            Energy density profile on the radial grid.
+        """
+        zz, rr, power_density = self.calculate_mode_power_density(
+            iteration, mode, density=density, grid=True, only_positive_r=only_positive_r
+        )
+
+        z = zz[0, :].to('m')
+        units = 'J/m^2' if density == 'angular_average' else 'J/m'
+        energy_density = (_np.trapezoid(power_density, z, axis=1) / self.c).to(units)
+
+        if grid:
+            return rr[:, 0].copy(), energy_density
+        else:
+            return energy_density
+
+    def calculate_mode_power(self, iteration: int, mode: int | typing.Literal['all'] = 'all', *, grid: bool = False):
+        """
+        Calculate the total laser power in a cylindrical mode.
+
+        This integrates the positive-r radial power density over radius.
+
+        Parameters
+        ----------
+        iteration : int
+            Iteration number to read.
+        mode : int | {'all'}, optional
+            Azimuthal mode. ``'all'`` sums the independent contributions of
+            all available modes.
+        grid : bool, optional
+            When ``True``, return ``(z, power)``.
+
+        Returns
+        -------
+        pint.Quantity | tuple
+            Power profile in ``W`` on the longitudinal grid.
+        """
+        zz, rr, power_density = self.calculate_mode_power_density(
+            iteration, mode, density='radial', grid=True, only_positive_r=True
+        )
+        power = _np.trapezoid(power_density, rr[:, 0].to('m'), axis=0).to('W')
+
+        if grid:
+            return zz[0, :].copy(), power
+        else:
+            return power
+
+    def calculate_mode_energy(self, iteration: int, mode: int | typing.Literal['all'] = 'all'):
+        """
+        Calculate the total laser energy in a cylindrical mode.
+
+        This integrates the positive-r radial energy density over radius.
+
+        Parameters
+        ----------
+        iteration : int
+            Iteration number to read.
+        mode : int | {'all'}, optional
+            Azimuthal mode. ``'all'`` sums the independent contributions of
+            all available modes.
+
+        Returns
+        -------
+        pint.Quantity
+            Total energy in ``J``.
+        """
+        r, energy_density = self.calculate_mode_energy_density(
+            iteration, mode, density='radial', grid=True, only_positive_r=True
+        )
+        return _np.trapezoid(energy_density, r.to('m')).to('J')
 
     def available_cylindrical_modes(self, field: str) -> list[int]:
         if field not in self.simulation.avail_fields:

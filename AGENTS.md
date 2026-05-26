@@ -50,3 +50,5 @@ Pull requests should include a concise description, the reason for the change, a
 ## Agent-Specific Instructions
 
 Keep edits scoped to the requested behavior and avoid unrelated formatting churn. Do not change dependency versions or public APIs unless the task requires it. When modifying numerical routines, add regression tests that cover units, shapes, and representative edge cases.
+
+Machine-specific instruction can be found in ENV.md if it exists.
