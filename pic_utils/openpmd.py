@@ -220,8 +220,6 @@ class OpenPMDWrapper:
         only_positive_r=False,
         slice_relative_position=None,
     ):
-        from .electromagnetism import poynting_vector
-
         if component != 'z':
             raise NotImplementedError(f'Components other than z are not implemented yet, {component} not available')
 
@@ -234,21 +232,33 @@ class OpenPMDWrapper:
             'slice_relative_position': slice_relative_position,
         }
 
-        ex = self.read_field(iteration, 'E', 'x', grid=grid, **kwargs)
-        ey = self.read_field(iteration, 'E', 'y', grid=False, **kwargs)
-
-        bx = self.read_field(iteration, 'B', 'x', grid=False, **kwargs)
         by = self.read_field(iteration, 'B', 'y', grid=False, **kwargs)
+        ex = self.read_field(iteration, 'E', 'x', grid=grid, **kwargs)
 
         if grid:
             if geometry == '3d':
                 zz, xx, yy, ex = ex
-                return zz, xx, yy, poynting_vector(ex, ey, bx, by)
             else:
                 xx, yy, ex = ex
-                return xx, yy, poynting_vector(ex, ey, bx, by)
+
+        sz = ex * by
+        del ex, by
+
+        bx = self.read_field(iteration, 'B', 'x', grid=False, **kwargs)
+        ey = self.read_field(iteration, 'E', 'y', grid=False, **kwargs)
+        sz -= bx * ey
+        del bx, ey
+
+        mu0 = self.ureg('vacuum_permeability')
+        sz = (sz / mu0).to('W/m^2')
+
+        if grid:
+            if geometry == '3d':
+                return zz, xx, yy, sz
+            else:
+                return xx, yy, sz
         else:
-            return poynting_vector(ex, ey, bx, by)
+            return sz
 
     def read_fluence(
         self,
@@ -442,14 +452,24 @@ class OpenPMDWrapper:
         er = self.read_cylindrical_mode(iteration, 'E', 'r', mode, grid=er_grid, only_positive_r=only_positive_r)
         if force_grid:
             z, r, er = er
-        et = self.read_cylindrical_mode(iteration, 'E', 't', mode, only_positive_r=only_positive_r)
-        br = self.read_cylindrical_mode(iteration, 'B', 'r', mode, only_positive_r=only_positive_r)
         bt = self.read_cylindrical_mode(iteration, 'B', 't', mode, only_positive_r=only_positive_r)
 
         if mode == 0:
-            mode_integral = real(er * bt - et * br) / mu0
+            mode_integral = er * bt
         else:
-            mode_integral = 0.5 * real(er * conj(bt) - et * conj(br)) / mu0
+            mode_integral = er * conj(bt)
+        del er, bt
+
+        et = self.read_cylindrical_mode(iteration, 'E', 't', mode, only_positive_r=only_positive_r)
+        br = self.read_cylindrical_mode(iteration, 'B', 'r', mode, only_positive_r=only_positive_r)
+        if mode == 0:
+            mode_integral -= et * br
+            mode_integral = real(mode_integral) / mu0
+        else:
+            mode_integral -= et * conj(br)
+            mode_integral = 0.5 * real(mode_integral) / mu0
+        del et, br
+
         mode_integral = mode_integral.to('W/m^2')
 
         if density == 'angular_average':
