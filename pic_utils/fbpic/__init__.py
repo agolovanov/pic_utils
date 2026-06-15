@@ -168,8 +168,10 @@ def setup_mpi(order: int = 32, *, print_details: bool = True) -> dict:
 
     from mpi4py import MPI
 
-    rank = MPI.COMM_WORLD.Get_rank()
-    nprocs = MPI.COMM_WORLD.Get_size()
+    comm = MPI.COMM_WORLD
+
+    rank = comm.Get_rank()
+    nprocs = comm.Get_size()
 
     if rank != 0:
         import sys
@@ -183,7 +185,7 @@ def setup_mpi(order: int = 32, *, print_details: bool = True) -> dict:
         print(f'Number of MPI processes: {nprocs}')
         print(f'Order {order}')
 
-    return {'rank': rank, 'nprocs': nprocs, 'order': order}
+    return {'rank': rank, 'nprocs': nprocs, 'order': order, 'comm': comm}
 
 
 def setup_output_folders(base_folder: str | Path, remove_subfolders: bool = False, use_boost: bool = True) -> dict:
@@ -482,7 +484,7 @@ def setup_diagnostics(
     simulation.diags = diags
 
 
-def prepare_script_folder(script: str | Path, script_folder: str | Path, parameters: dict | None = None) -> str:
+def prepare_script_folder(script: str | Path, script_folder: str | Path, parameters: dict | None = None, parameters_folder: str | Path | None) -> str:
     """Prepares a separate folder for an FBPIC script.
 
     Copies the script to the folder and creates an input JSON file based on the dictionary of parameters inside this
