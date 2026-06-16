@@ -484,7 +484,7 @@ def setup_diagnostics(
     simulation.diags = diags
 
 
-def prepare_script_folder(script: str | Path, script_folder: str | Path, parameters: dict | None = None, parameters_folder: str | Path | None) -> str:
+def prepare_script_folder(script: str | Path, script_folder: str | Path, parameters: dict | None = None) -> str:
     """Prepares a separate folder for an FBPIC script.
 
     Copies the script to the folder and creates an input JSON file based on the dictionary of parameters inside this
