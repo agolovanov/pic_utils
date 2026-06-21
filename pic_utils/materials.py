@@ -63,6 +63,7 @@ molecules = {
     'helium': Molecule({'He': 1}),
     'nitrogen': Molecule({'N': 2}),
     'oxygen': Molecule({'O': 2}),
+    'argon': Molecule({'Ar': 1}),
     'methane': Molecule({'H': 4, 'C': 1}),
 }
 
@@ -157,7 +158,14 @@ class Composition:
             self.ionized_electron_share += self.ionization_levels[el] * self.element_shares[el]
 
     def __repr__(self):
-        return ', '.join(f'{str(mol)} ({share * 100:.3g}%)' for mol, share in self.molecule_shares.items())
+        molecules_string = ', '.join(
+            f'{mol} {str(molecules[mol])} ({share * 100:.3g}%)' for mol, share in self.molecule_shares.items()
+        )
+        element_shares = normalize_shares(self.element_shares)
+        elements = ', '.join(
+            f'{el.symbol}+{self.ionization_levels[el]} ({share * 100:.3g}%)' for el, share in element_shares.items()
+        )
+        return f'molecules: {molecules_string}; elements: {elements}'
 
     def __iter__(self):
         return iter(self.element_shares)

@@ -41,11 +41,18 @@ def test_composition():
     number_density = 1e18
     target = Composition({'helium': 2, 'nitrogen': 1}, number_density=number_density)
 
+    assert repr(target) == 'molecules: helium He (66.7%), nitrogen N2 (33.3%); elements: He+0 (50%), N+0 (50%)'
+
     np.testing.assert_almost_equal(target.get_number_density('He'), (2 / 3) * number_density)
     np.testing.assert_almost_equal(target.get_number_density('N'), (2 / 3) * number_density)
     np.testing.assert_almost_equal(target.get_number_density('e'), 0)
 
     np.testing.assert_approx_equal(target.get_full_ionization_density(), 6 * number_density)
+
+    target = Composition(
+        {'helium': 2, 'nitrogen': 1}, number_density=number_density, ionization_levels={'He': 2, 'N': 5}
+    )
+    assert repr(target) == 'molecules: helium He (66.7%), nitrogen N2 (33.3%); elements: He+2 (50%), N+5 (50%)'
 
 
 def test_mass_density():
