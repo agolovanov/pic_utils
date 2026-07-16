@@ -1,14 +1,17 @@
 import numpy as np
+import pandas as pd
 import pint
 from hypothesis import given
 from hypothesis import strategies as st
 
 from pic_utils.bunch import (
     calculate_bunch_stats,
+    calculate_subset_transverse_distributions,
     energy_to_gamma,
     gamma_to_energy,
     generate_gaussian_bunch,
     calculate_spectrum,
+    print_bunch_stats,
 )
 
 
@@ -95,3 +98,25 @@ def test_calculate_spectrum_grid():
     assert len(grid) == len(grid_new)
     np.testing.assert_allclose(grid, grid_new)
     np.testing.assert_allclose(values, values_new)
+
+
+def test_empty_slice_extrema_are_nan():
+    particles = pd.DataFrame(
+        {
+            'x': [1e-6],
+            'y': [2e-6],
+            'z': [0.0],
+            'ux': [0.1],
+            'uy': [0.2],
+            'uz': [10.0],
+            'w': [1.0],
+            'energy': [5.0],
+        }
+    )
+
+    _, stats = calculate_subset_transverse_distributions(particles, 'x', 3, value='energy', value_range=(0.0, 9.0))
+
+    np.testing.assert_array_equal(np.isnan(stats['min_x'].magnitude), [True, False, True])
+    np.testing.assert_array_equal(np.isnan(stats['max_x'].magnitude), [True, False, True])
+    np.testing.assert_array_equal(np.isnan(stats['pmin_x']), [True, False, True])
+    np.testing.assert_array_equal(np.isnan(stats['pmax_x']), [True, False, True])
