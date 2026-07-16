@@ -793,8 +793,6 @@ def calculate_bunch_stats(
         {
             'total_charge': total_charge,
             'total_energy': total_energy,
-            'energies': energies,
-            'weights': weights,
             'particle_number': len(particles.index),
             'min_energy': min_energy,
             'max_energy': max_energy,
