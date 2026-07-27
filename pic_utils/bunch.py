@@ -175,6 +175,14 @@ def calculate_transverse_distributions(
     u_long = data[f'u{propagation_axis}']
     u_long_mean = mean(u_long, weights, total_weight=total_weight)
 
+    if len(x) == 0:
+        xmin = xmax = pmin = pmax = np.nan
+    else:
+        xmax = np.max(x)
+        xmin = np.min(x)
+        pmin = np.min(p)
+        pmax = np.max(p)
+
     xmean = mean(x, weights, total_weight=total_weight)
     pmean = mean(p, weights, total_weight=total_weight)
     xrel = x - xmean
@@ -186,6 +194,10 @@ def calculate_transverse_distributions(
     emittance_norm = np.sqrt(x2_mean * p2_mean - xp_mean**2)
     emittance = emittance_norm / u_long_mean
 
+    res[f'max{suffix}'] = (xmax * ureg.m).to('um')
+    res[f'min{suffix}'] = (xmin * ureg.m).to('um')
+    res[f'pmax{suffix}'] = pmax
+    res[f'pmin{suffix}'] = pmin
     res[f'mean{suffix}'] = (xmean * ureg.m).to('um')
     res[f'sigma{suffix}'] = (np.sqrt(x2_mean) * ureg.m).to('um')
     res[f'pmean{suffix}'] = pmean
@@ -784,6 +796,11 @@ def calculate_bunch_stats(
         particles, transverse_axes, total_weight=total_weight, propagation_axis=propagation_axis
     )
 
+    long_min = (np.min(particles[propagation_axis]) * ureg.m).to('um')
+    long_max = (np.max(particles[propagation_axis]) * ureg.m).to('um')
+    ulong_min = np.min(particles[f'u{propagation_axis}'])
+    ulong_max = np.max(particles[f'u{propagation_axis}'])
+
     long_mean, long_sigma = mean_spread(particles[propagation_axis], weights, total_weight=total_weight)
     long_mean = (long_mean * ureg.m).to('um')
     long_sigma = (long_sigma * ureg.m).to('um')
@@ -803,7 +820,11 @@ def calculate_bunch_stats(
             'long_mean': long_mean,
             'long_sigma': long_sigma,
             'long_duration': long_duration,
+            'long_min': long_min,
+            'long_max': long_max,
             'ulong_mean': ulong_mean,
+            'ulong_min': ulong_min,
+            'ulong_max': ulong_max,
         }
     )
 
@@ -861,11 +882,21 @@ def print_bunch_stats(stats: dict | pd.DataFrame, return_stats: bool = False) ->
         f'             {stats["propagation_axis"]} = {format_mean_spread(stats["long_mean"], stats["long_sigma"])} '
         f'(duration {stats["long_duration"]:.3g#~})'
     )
+    print(
+        f'             {ax1} min = {stats[f"min_{ax1}"]:.3g#~}, max = {stats[f"max_{ax1}"]:.3g#~}; '
+        f'{ax2} min = {stats[f"min_{ax2}"]:.3g#~}, max = {stats[f"max_{ax2}"]:.3g#~}; ',
+        f'{stats["propagation_axis"]} min = {stats["long_min"]:.3g#~}, max = {stats["long_max"]:.3g#~}',
+    )
 
     print(
         f'Momenta: u{ax1} = {format_mean_spread(stats[f"pmean_{ax1}"], stats[f"psigma_{ax1}"])}, '
         f'u{ax2} = {format_mean_spread(stats[f"pmean_{ax2}"], stats[f"psigma_{ax2}"])}, '
         f'u{stats["propagation_axis"]} = {stats["ulong_mean"]:.3g}'
+    )
+    print(
+        f'         u{ax1} min = {stats[f"pmin_{ax1}"]:.3g}, max = {stats[f"pmax_{ax1}"]:.3g}; '
+        f'u{ax2} min = {stats[f"pmin_{ax2}"]:.3g}, max = {stats[f"pmax_{ax2}"]:.3g}; '
+        f'u{stats["propagation_axis"]} min = {stats["ulong_min"]:.3g}, max = {stats["ulong_max"]:.3g}'
     )
     print(f'Pointing angle: {ax1} = {stats[f"prime_mean_{ax1}"]:.3g~}, {ax2} = {stats[f"prime_mean_{ax2}"]:.3g~}')
     print(f'Divergence: {ax1} = {stats[f"prime_sigma_{ax1}"]:.3g~}, {ax2} = {stats[f"prime_sigma_{ax2}"]:.3g~}')
