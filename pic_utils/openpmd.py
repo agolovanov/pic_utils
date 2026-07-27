@@ -1,9 +1,11 @@
+import typing
+
 import numpy as _np
 import pandas as _pd
 import pint as _pint
 from openpmd_viewer.addons import LpaDiagnostics as _Lpa
 
-import typing
+from .electromagnetism import mode_energy_density, mode_poynting_vector
 
 if typing.TYPE_CHECKING:
     from .plasma import PlasmaUnits
@@ -442,7 +444,7 @@ class OpenPMDWrapper:
 
             return (zz, rr, power_density) if grid else power_density
 
-        from .units import real, conj
+        from .units import conj, real
 
         mu0 = self.ureg('vacuum_permeability')
 
@@ -573,11 +575,6 @@ class OpenPMDWrapper:
 
             return (zz, rr, energy_density) if grid else energy_density
 
-        from .units import conj, real
-
-        mu0 = self.ureg('vacuum_permeability')
-        eps0 = self.ureg('vacuum_permittivity')
-
         force_grid = grid or density == 'radial'
         er_grid = 'axes' if force_grid else False
 
@@ -590,14 +587,7 @@ class OpenPMDWrapper:
         bt = self.read_cylindrical_mode(iteration, 'B', 't', mode, only_positive_r=only_positive_r)
         bz = self.read_cylindrical_mode(iteration, 'B', 'z', mode, only_positive_r=only_positive_r)
 
-        if mode == 0:
-            e2 = real(er * er + et * et + ez * ez)
-            b2 = real(br * br + bt * bt + bz * bz)
-        else:
-            e2 = 0.5 * real(er * conj(er) + et * conj(et) + ez * conj(ez))
-            b2 = 0.5 * real(br * conj(br) + bt * conj(bt) + bz * conj(bz))
-
-        angular_average = (0.5 * (eps0 * e2 + b2 / mu0)).to('J/m^3')
+        angular_average = mode_energy_density(mode, er, et, ez, br, bt, bz)
 
         if density == 'angular_average':
             result = angular_average
@@ -741,6 +731,90 @@ class OpenPMDWrapper:
             iteration, mode, method=method, density='radial', grid='axes', only_positive_r=True
         )
         return _np.trapezoid(energy_profile, r).to('J')
+
+    def calculate_mode_energy_and_power(
+        self,
+        iteration: int,
+        mode: int | typing.Literal['all'] = 'all',
+        *,
+        energy_method: typing.Literal['field', 'flux'] = 'field',
+        grid: GridOption = False,
+    ):
+        """
+        Calculate total EM energy and longitudinal power from one set of field reads.
+
+        Unlike separate calls to :meth:`calculate_mode_energy` and
+        :meth:`calculate_mode_power`, this method reads the shared transverse
+        field components only once.
+
+        Parameters
+        ----------
+        iteration : int
+            Iteration number to read.
+        mode : int | {'all'}, optional
+            Azimuthal mode. ``'all'`` sums the independent contributions of
+            all available modes.
+        energy_method : {'field', 'flux'}, optional
+            ``'field'`` calculates the true EM energy from the field energy
+            density. ``'flux'`` calculates the laser-like estimate from the
+            longitudinal Poynting flux.
+
+            Defaults to ``'field'``.
+        grid : bool | {'mesh', 'axes'}, optional
+            When ``True``, ``'mesh'`` or ``'axes'``, return
+            ``(z, energy, power)``.
+
+        Returns
+        -------
+        tuple
+            ``(energy, power)`` by default, where energy is a scalar in ``J``
+            and power is a longitudinal profile in ``W``. With ``grid=True``,
+            return ``(z, energy, power)``.
+        """
+        grid = self._normalize_grid(grid)
+
+        if energy_method not in ('field', 'flux'):
+            raise ValueError(f'Unknown {energy_method=}; use "field" or "flux"')
+
+        if mode == 'all':
+            modes = sorted(set(self.available_cylindrical_modes('E')) & set(self.available_cylindrical_modes('B')))
+            if len(modes) == 0:
+                raise ValueError('No common modes available for E and B fields')
+
+            z, energy, power = self.calculate_mode_energy_and_power(
+                iteration, modes[0], energy_method=energy_method, grid='axes'
+            )
+            for current_mode in modes[1:]:
+                mode_energy, mode_power = self.calculate_mode_energy_and_power(
+                    iteration, current_mode, energy_method=energy_method
+                )
+                energy += mode_energy
+                power += mode_power
+
+            return (z, energy, power) if grid else (energy, power)
+
+        z, r, er = self.read_cylindrical_mode(iteration, 'E', 'r', mode, grid='axes', only_positive_r=True)
+        et = self.read_cylindrical_mode(iteration, 'E', 't', mode, only_positive_r=True)
+        br = self.read_cylindrical_mode(iteration, 'B', 'r', mode, only_positive_r=True)
+        bt = self.read_cylindrical_mode(iteration, 'B', 't', mode, only_positive_r=True)
+
+        power_density = mode_poynting_vector(mode, er, et, br, bt)
+        if energy_method == 'field':
+            ez = self.read_cylindrical_mode(iteration, 'E', 'z', mode, only_positive_r=True)
+            bz = self.read_cylindrical_mode(iteration, 'B', 'z', mode, only_positive_r=True)
+            energy_density = mode_energy_density(mode, er, et, ez, br, bt, bz)
+        else:
+            energy_density = (power_density / self.c).to('J/m^3')
+
+        r = r.to('m')
+        z = z.to('m')
+        radial_energy_density = (2 * _np.pi * r[:, None] * energy_density).to('J/m^2')
+        radial_power_density = (2 * _np.pi * r[:, None] * power_density).to('W/m')
+        radial_energy_profile = _np.trapezoid(radial_energy_density, z, axis=1)
+        energy = _np.trapezoid(radial_energy_profile, r).to('J')
+        power = _np.trapezoid(radial_power_density, r, axis=0).to('W')
+
+        return (z.copy(), energy, power) if grid else (energy, power)
 
     def available_cylindrical_modes(self, field: str) -> list[int]:
         if field not in self.simulation.avail_fields:
