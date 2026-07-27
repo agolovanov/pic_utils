@@ -14,6 +14,55 @@ if TYPE_CHECKING:
     from .. import materials
 
 
+_DIAGNOSTIC_INTERVAL_KEYS = ('default', 'fields_lab', 'particles_lab', 'density_lab', 'on_axis_ez_lab')
+_DIAGNOSTIC_INTERVAL_KEY_SET = set(_DIAGNOSTIC_INTERVAL_KEYS)
+
+
+def __output_interval_to_time(output_interval: pint.Quantity, v_window: pint.Quantity) -> pint.Quantity:
+    if output_interval.check({'[length]': 1}):  # given in length
+        output_interval = output_interval / v_window
+    return output_interval
+
+
+def __normalize_output_intervals(output_interval: pint.Quantity | dict, v_window: pint.Quantity) -> dict:
+    if not isinstance(output_interval, dict):
+        interval = __output_interval_to_time(output_interval, v_window)
+        return {key: interval for key in _DIAGNOSTIC_INTERVAL_KEYS}
+
+    unknown_keys = set(output_interval) - _DIAGNOSTIC_INTERVAL_KEY_SET
+    if unknown_keys:
+        print(f'Unknown diagnostic output interval keys will be ignored: {", ".join(sorted(unknown_keys))}')
+
+    if 'default' not in output_interval:
+        raise ValueError('When output_interval is a dictionary, it must contain a "default" key')
+
+    default_interval = __output_interval_to_time(output_interval['default'], v_window)
+    intervals = {key: default_interval for key in _DIAGNOSTIC_INTERVAL_KEYS}
+    for key in _DIAGNOSTIC_INTERVAL_KEYS:
+        if key == 'default':
+            continue
+        if key in output_interval:
+            intervals[key] = __output_interval_to_time(output_interval[key], v_window)
+
+    return intervals
+
+
+def __diagnostic_timing(output_interval: pint.Quantity, dt_lab: pint.Quantity, n_timesteps: int) -> dict:
+    diag_period = int((output_interval // dt_lab).m_as(''))
+    if diag_period < 1:
+        raise ValueError(
+            f'Output interval {output_interval:.3g#~} is smaller than the simulation timestep {dt_lab:.3g#~}'
+        )
+
+    n_diag_timesteps = n_timesteps // diag_period + 1
+    diag_dt_lab = (diag_period * dt_lab).to('s')
+    return {
+        'lab_diag_dt': diag_dt_lab.m_as('s'),
+        'diag_period': diag_period,
+        'lab_diag_timesteps': n_diag_timesteps,
+    }
+
+
 def __get_particles_per_cell(particles_per_cell: tuple | dict, species_name: str, species_symbol: str) -> tuple:
     if isinstance(particles_per_cell, dict):
         if species_name in particles_per_cell:
@@ -246,7 +295,7 @@ def setup_simulation_parameters(
     zmin: pint.Quantity,
     zmax: pint.Quantity,
     interaction_length: pint.Quantity,
-    output_interval: pint.Quantity,
+    output_interval: pint.Quantity | dict,
     boost_write_period: int = 100,
 ):
     from fbpic.lpa_utils import boosted_frame
@@ -254,8 +303,8 @@ def setup_simulation_parameters(
     ureg = pint.get_application_registry()
     c = ureg('speed_of_light')
 
-    if output_interval.check({'[length]': 1}):  # given in length
-        output_interval = output_interval / v_window
+    output_intervals = __normalize_output_intervals(output_interval, v_window)
+    default_output_interval = output_intervals['default']
 
     if gamma_boost > 1.0:
         use_boost = True
@@ -288,17 +337,18 @@ def setup_simulation_parameters(
 
     interaction_time = interaction_length / v_window
 
-    diag_period = int((output_interval // dt_lab).m_as(''))  # Period of the diagnostics in number of timesteps
     n_timesteps = int((interaction_time / dt_lab).m_as(''))
-    n_diag_timesteps = n_timesteps // diag_period + 1
-    n_timesteps = (n_diag_timesteps - 1) * diag_period + 1
+    default_timing = __diagnostic_timing(default_output_interval, dt_lab, n_timesteps)
+    n_timesteps = (default_timing['lab_diag_timesteps'] - 1) * default_timing['diag_period'] + 1
     interaction_time = n_timesteps * dt_lab
     interaction_length = (v_window * interaction_time).to('m')
 
     print(f'Simulation length: {interaction_length:.3g#~}; time: {interaction_time:.3g#~}')
 
-    diag_dt_lab = (diag_period * dt_lab).to('s')
-    diag_dt_boost = None
+    diagnostic_timings = {
+        key: __diagnostic_timing(interval, dt_lab, n_timesteps) for key, interval in output_intervals.items()
+    }
+    default_timing = diagnostic_timings['default']
 
     if use_boost:
         interaction_time_boost = boost.interaction_time(
@@ -306,13 +356,29 @@ def setup_simulation_parameters(
         ) * ureg('s')
         print(f'Interaction time in the boosted frame: {interaction_time_boost:.3g#~}')
 
-        diag_dt_boost = (interaction_time_boost / (n_diag_timesteps - 1)).to('s')
+        for timing in diagnostic_timings.values():
+            timing['boost_diag_dt'] = (interaction_time_boost / (timing['lab_diag_timesteps'] - 1)).m_as('s')
 
-    print(f'Output timestep = {diag_dt_lab:.3g#~} ({(diag_dt_lab * v_window).to("m"):.3g#~})')
+    default_diag_dt_lab = default_timing['lab_diag_dt'] * ureg.s
+    print(f'Output timestep = {default_diag_dt_lab:.3g#~} ({(default_diag_dt_lab * v_window).to("m"):.3g#~})')
 
     if use_boost:
-        print(f'Output timestep in the boosted frame = {diag_dt_boost:.3g#~}')
-    print(f'There should be {n_diag_timesteps} diagnostic iterations')
+        print(f'Output timestep in the boosted frame = {diagnostic_timings["default"]["boost_diag_dt"] * ureg.s:.3g#~}')
+    print(f'There should be {default_timing["lab_diag_timesteps"]} diagnostic iterations')
+    for diagnostic_key, timing in diagnostic_timings.items():
+        if diagnostic_key == 'default':
+            continue
+        if timing == default_timing:
+            continue
+
+        diag_dt_lab = timing['lab_diag_dt'] * ureg.s
+        print(
+            f'{diagnostic_key} output timestep = {diag_dt_lab:.3g#~} '
+            f'({(diag_dt_lab * v_window).to("m"):.3g#~}); '
+            f'{timing["lab_diag_timesteps"]} diagnostic iterations'
+        )
+        if use_boost:
+            print(f'{diagnostic_key} output timestep in the boosted frame = {timing["boost_diag_dt"] * ureg.s:.3g#~}')
     if use_boost:
         print(f'Lab diagnostics will be saved to disc every {boost_write_period} iterations')
 
@@ -340,18 +406,14 @@ def setup_simulation_parameters(
         'zmax': zmax.m_as('m'),
         'v_window': v_window_boost,
         'v_comoving': v_comoving,
-        'lab_diag_dt': diag_dt_lab.m_as('s'),
-        'diag_period': diag_period,
-        'lab_diag_timesteps': n_diag_timesteps,
+        'diagnostic_timings': diagnostic_timings,
         'simulation_steps': simulations_steps,
     }
 
     if use_boost:
         res.update(
             {
-                'boost_diag_dt': diag_dt_boost.m_as('s'),
                 'v_window_lab': v_window_magn,
-                'boost_diag_timesteps': n_diag_timesteps,
                 'boost_write_period': boost_write_period,
             }
         )
@@ -384,9 +446,8 @@ def setup_diagnostics(
     zmin = simulation_parameters['zmin']
     zmax = simulation_parameters['zmax']
     use_boost = simulation_parameters['boost']
-    lab_dt = simulation_parameters['lab_diag_dt']
-    lab_timesteps = simulation_parameters['lab_diag_timesteps']
     gamma = simulation_parameters['gamma']
+    diagnostic_timings = simulation_parameters['diagnostic_timings']
 
     comm = simulation.comm
     fld = simulation.fld
@@ -396,13 +457,14 @@ def setup_diagnostics(
         period = simulation_parameters['boost_write_period']
 
         if fields_lab is not None:
+            timing = diagnostic_timings['fields_lab']
             diags.append(
                 BackTransformedFieldDiagnostic(
                     zmin_lab=zmin,
                     zmax_lab=zmax,
                     v_lab=v_lab,
-                    dt_snapshots_lab=lab_dt,
-                    Ntot_snapshots_lab=lab_timesteps,
+                    dt_snapshots_lab=timing['lab_diag_dt'],
+                    Ntot_snapshots_lab=timing['lab_diag_timesteps'],
                     period=period,
                     gamma_boost=gamma,
                     fldobject=fld,
@@ -414,13 +476,14 @@ def setup_diagnostics(
             print(f'Field diagnostics (lab frame) for: {", ".join(fields_lab)}')
 
         if on_axis_ez_lab:
+            timing = diagnostic_timings['on_axis_ez_lab']
             diags.append(
                 BackTransformedOnAxisEzDiagnostic(
                     zmin_lab=zmin,
                     zmax_lab=zmax,
                     v_lab=v_lab,
-                    dt_snapshots_lab=lab_dt,
-                    Ntot_snapshots_lab=lab_timesteps,
+                    dt_snapshots_lab=timing['lab_diag_dt'],
+                    Ntot_snapshots_lab=timing['lab_diag_timesteps'],
                     gamma_boost=gamma,
                     fldobject=fld,
                     comm=comm,
@@ -434,14 +497,15 @@ def setup_diagnostics(
             print('Particle density diagnostic is not available for the lab frame in boosted frame simulations')
 
         if particle_species_lab is not None:
+            timing = diagnostic_timings['particles_lab']
             diags.append(
                 BackTransformedParticleDiagnostic(
                     zmin_lab=zmin,
                     zmax_lab=zmax,
                     v_lab=v_lab,
-                    dt_snapshots_lab=lab_dt,
+                    dt_snapshots_lab=timing['lab_diag_dt'],
                     comm=comm,
-                    Ntot_snapshots_lab=lab_timesteps,
+                    Ntot_snapshots_lab=timing['lab_diag_timesteps'],
                     period=period,
                     gamma_boost=gamma,
                     species=particle_species_lab,
@@ -452,24 +516,25 @@ def setup_diagnostics(
             )
             print(f'Particle diagnostics (lab frame) for: {", ".join(particle_species_lab.keys())}')
     else:
-        diag_period = simulation_parameters['diag_period']
-
         if fields_lab is not None:
-            diags.append(FieldDiagnostic(period=diag_period, fldobject=fld, comm=comm, write_dir=lab_dir))
+            timing = diagnostic_timings['fields_lab']
+            diags.append(FieldDiagnostic(period=timing['diag_period'], fldobject=fld, comm=comm, write_dir=lab_dir))
             print(f'Field diagnostics for: {", ".join(fields_lab)}')
 
         if density_species_lab:
+            timing = diagnostic_timings['density_lab']
             diags.append(
                 ParticleChargeDensityDiagnostic(
-                    period=diag_period, sim=simulation, species=density_species_lab, write_dir=lab_dir
+                    period=timing['diag_period'], sim=simulation, species=density_species_lab, write_dir=lab_dir
                 )
             )
             print(f'Density diagnostics for: {", ".join(density_species_lab.keys())}')
 
         if particle_species_lab:
+            timing = diagnostic_timings['particles_lab']
             diags.append(
                 ParticleDiagnostic(
-                    period=diag_period,
+                    period=timing['diag_period'],
                     species=particle_species_lab,
                     comm=comm,
                     write_dir=lab_dir,
