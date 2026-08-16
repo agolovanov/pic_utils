@@ -907,7 +907,7 @@ class OpenPMDWrapper:
         return self.simulation.iterations
 
     def times(self, units='s'):
-        return self.simulation.t * self.ureg(units)
+        return (self.simulation.t * self.ureg.second).to(units)
 
     def species(self):
         species = self.simulation.avail_species
